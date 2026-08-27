@@ -31,6 +31,11 @@
     .frame img{width:100%; height:100%; object-fit:cover; display:block;}
     .frame .placeholder{color:var(--paper-faint); font-size:13px; padding:16px;}
 
+    /* --- Los tres formatos. Cuál se usa lo decide la tabla "events", no el navegador. --- */
+    .filter-vintage{ filter: sepia(0.35) saturate(1.4) contrast(0.9) brightness(1.08) hue-rotate(-6deg); }
+    .filter-bw{ filter: grayscale(1) contrast(1.15) brightness(1.02); }
+    .filter-polaroid{ filter: saturate(0.85) contrast(0.92) brightness(1.06) sepia(0.08); }
+
     button{font-family:inherit; cursor:pointer;}
     .shutter-btn{
       width:84px; height:84px; border-radius:50%;
@@ -62,10 +67,9 @@
 
   <script>
     // --- 1) Conexión con Supabase -------------------------------------
-    // La URL y la llave "anon" no son secretas: están hechas para vivir aquí, a la vista.
     const SUPABASE_URL = 'https://qhwxtgzqnztshmudabho.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFod3h0Z3pxbnp0c2htdWRhYmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTI5NzQsImV4cCI6MjEwMzM2ODk3NH0.ufpYauUWbbbJrAPOTY3zA6vQ9DfsYBEFXVsZrtPV2YU';
-    const EVENT_NAME = 'Mi evento'; // luego esto va a venir del panel del organizador
+    const EVENT_NAME = 'Mi evento';
 
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -80,7 +84,17 @@
       statusEl.className = 'status' + (kind ? ' ' + kind : '');
     }
 
-    // --- 3) Achicar la foto antes de subirla (más rápido, pesa menos) --
+    // --- 3) El formato del evento se lee una vez, de la tabla "events" --
+    // Nadie lo elige desde aquí: viene fijo según el paquete que se compró.
+    let filterClass = 'filter-vintage'; // mientras carga, o si algo falla
+    (async function loadEventFilter() {
+      try {
+        const { data, error } = await db.from('events').select('filter').eq('name', EVENT_NAME).single();
+        if (!error && data && data.filter) filterClass = 'filter-' + data.filter;
+      } catch (e) { /* se queda con el formato por defecto */ }
+    })();
+
+    // --- 4) Achicar la foto antes de subirla ---------------------------
     function compress(file) {
       return new Promise((resolve, reject) => {
         const maxDim = 1200;
@@ -107,7 +121,7 @@
       });
     }
 
-    // --- 4) El flujo completo: foto -> Supabase Storage -> tabla photos
+    // --- 5) El flujo completo: foto -> Supabase Storage -> tabla photos
     shutterBtn.addEventListener('click', () => cameraInput.click());
 
     cameraInput.addEventListener('change', async () => {
@@ -120,13 +134,13 @@
       try {
         const blob = await compress(file);
 
-        // vista previa local, antes de subir
+        // vista previa local, YA con el formato del evento aplicado
         frame.innerHTML = '';
         const img = document.createElement('img');
+        img.className = filterClass;
         img.src = URL.createObjectURL(blob);
         frame.appendChild(img);
 
-        // nombre de archivo único para que no se sobreescriban entre sí
         const path = EVENT_NAME.replace(/\s+/g, '-').toLowerCase() + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
 
         const { error: uploadError } = await db.storage.from('fotos').upload(path, blob, { contentType: 'image/jpeg' });
