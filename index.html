@@ -23,18 +23,35 @@
     h1{font-size:2rem; margin:0 0 6px;}
     p{color:var(--paper-dim); margin:0 0 28px; max-width:34ch;}
 
+    .frame-card{margin-bottom:26px;}
+    /* Cuando el formato es "polaroid", esta tarjeta blanca envuelve la foto,
+       con más espacio abajo que a los lados -- así se ve como una polaroid real. */
+    .frame-card.polaroid-card{
+      background:#ffffff; padding:14px 14px 46px; border-radius:4px;
+      box-shadow:0 14px 30px -16px rgba(0,0,0,0.55);
+    }
     .frame{
       width:min(280px, 78vw); aspect-ratio:1/1; background:#1b1512; border-radius:12px;
-      display:flex; align-items:center; justify-content:center; overflow:hidden; margin-bottom:26px;
-      border:1px solid var(--line-strong);
+      display:flex; align-items:center; justify-content:center; overflow:hidden;
+      border:1px solid var(--line-strong); position:relative;
     }
+    .frame-card.polaroid-card .frame{border-radius:2px; border:none;}
     .frame img{width:100%; height:100%; object-fit:cover; display:block;}
     .frame .placeholder{color:var(--paper-faint); font-size:13px; padding:16px;}
 
     /* --- Los tres formatos. Cuál se usa lo decide la tabla "events", no el navegador. --- */
-    .filter-vintage{ filter: sepia(0.35) saturate(1.4) contrast(0.9) brightness(1.08) hue-rotate(-6deg); }
-    .filter-bw{ filter: grayscale(1) contrast(1.15) brightness(1.02); }
+    /* vintage: foto vieja, desvanecida por el sol -- poco contraste, poca saturación, luces quemadas */
+    .filter-vintage{ filter: sepia(0.18) saturate(0.8) contrast(0.78) brightness(1.16) hue-rotate(-4deg); }
+    /* blanco y negro: mucho contraste real, sombras profundas, no solo "sin color" */
+    .filter-bw{ filter: grayscale(1) contrast(1.32) brightness(0.94); }
     .filter-polaroid{ filter: saturate(0.85) contrast(0.92) brightness(1.06) sepia(0.08); }
+
+    /* el brillo cálido de luz que trae el formato vintage, encima del filtro de color */
+    .frame.vintage-glow::after{
+      content:""; position:absolute; inset:0; pointer-events:none;
+      background:radial-gradient(circle at 72% 18%, rgba(255,221,163,0.42), transparent 55%);
+      mix-blend-mode:screen;
+    }
 
     button{font-family:inherit; cursor:pointer;}
     .shutter-btn{
@@ -56,7 +73,9 @@
   <h1>Revelado 📸</h1>
   <p>Toca el obturador y tu foto entra directo al álbum.</p>
 
-  <div class="frame" id="frame"><div class="placeholder">Aquí aparecerá tu foto</div></div>
+  <div class="frame-card" id="frameCard">
+    <div class="frame" id="frame"><div class="placeholder">Aquí aparecerá tu foto</div></div>
+  </div>
 
   <button class="shutter-btn" id="shutterBtn" aria-label="Tomar foto">
     <svg viewBox="0 0 24 24" fill="none" stroke="#150f0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path><circle cx="12" cy="13" r="3.4"></circle></svg>
@@ -92,6 +111,10 @@
         const { data, error } = await db.from('events').select('filter').eq('name', EVENT_NAME).single();
         if (!error && data && data.filter) filterClass = 'filter-' + data.filter;
       } catch (e) { /* se queda con el formato por defecto */ }
+      // si el formato es polaroid, la tarjeta blanca con marco se activa aquí
+      document.getElementById('frameCard').classList.toggle('polaroid-card', filterClass === 'filter-polaroid');
+      // si el formato es vintage, el brillito cálido se activa aquí
+      document.getElementById('frame').classList.toggle('vintage-glow', filterClass === 'filter-vintage');
     })();
 
     // --- 4) Achicar la foto antes de subirla ---------------------------
