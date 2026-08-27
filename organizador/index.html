@@ -39,13 +39,26 @@
     .print:nth-child(3n+1){transform:rotate(-1.6deg);}
     .print:nth-child(3n+2){transform:rotate(1.2deg);}
     .print:nth-child(3n){transform:rotate(-0.6deg);}
-    .print img{width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:2px; display:block;}
     .print .ts{font-size:9px; color:var(--darkroom); opacity:0.55; margin-top:6px; text-align:center; font-family:ui-monospace, monospace;}
+    .shot{position:relative; display:block; overflow:hidden; border-radius:2px;}
+    .print img{width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:2px; display:block;}
+
+    /* El formato "polaroid" usa un marco más blanco y con más aire abajo -- la franja clásica. */
+    .print.polaroid-card{background:#ffffff; padding:14px 14px 46px;}
 
     /* --- Los tres formatos, iguales a los de la página de la cámara --- */
-    .filter-vintage{ filter: sepia(0.35) saturate(1.4) contrast(0.9) brightness(1.08) hue-rotate(-6deg); }
-    .filter-bw{ filter: grayscale(1) contrast(1.15) brightness(1.02); }
+    /* vintage: foto vieja, desvanecida por el sol -- poco contraste, poca saturación, luces quemadas */
+    .filter-vintage{ filter: sepia(0.18) saturate(0.8) contrast(0.78) brightness(1.16) hue-rotate(-4deg); }
+    /* blanco y negro: mucho contraste real, sombras profundas, no solo "sin color" */
+    .filter-bw{ filter: grayscale(1) contrast(1.32) brightness(0.94); }
     .filter-polaroid{ filter: saturate(0.85) contrast(0.92) brightness(1.06) sepia(0.08); }
+
+    /* el brillo cálido de luz que trae el formato vintage, encima del filtro de color */
+    .shot.vintage-glow::after{
+      content:""; position:absolute; inset:0; pointer-events:none;
+      background:radial-gradient(circle at 72% 18%, rgba(255,221,163,0.42), transparent 55%);
+      mix-blend-mode:screen;
+    }
   </style>
 </head>
 <body>
@@ -84,14 +97,16 @@
       } catch (e) { return ''; }
     }
 
-    function render(photos, filterClass) {
+    function render(photos, filterKey) {
       countEl.innerHTML = '<strong>' + photos.length + '</strong> foto' + (photos.length === 1 ? '' : 's');
       if (photos.length === 0) {
         contentEl.innerHTML = '<div class="empty">Aún no hay fotos. En cuanto alguien use la cámara, van a aparecer aquí solas.</div>';
         return;
       }
+      const printClass = 'print' + (filterKey === 'polaroid' ? ' polaroid-card' : '');
+      const shotClass = 'shot' + (filterKey === 'vintage' ? ' vintage-glow' : '');
       contentEl.innerHTML = '<div class="grid">' + photos.map(p =>
-        '<div class="print"><img class="' + esc(filterClass) + '" src="' + esc(p.photo_url) + '" alt="Foto del álbum" loading="lazy">' +
+        '<div class="' + printClass + '"><span class="' + shotClass + '"><img class="filter-' + esc(filterKey) + '" src="' + esc(p.photo_url) + '" alt="Foto del álbum" loading="lazy"></span>' +
         '<div class="ts">' + esc(fmtTime(p.created_at)) + '</div></div>'
       ).join('') + '</div>';
     }
@@ -112,7 +127,7 @@
       badgeEl.textContent = FILTER_LABELS[filterKey] || FILTER_LABELS.vintage;
       badgeEl.hidden = false;
 
-      render(photosRes.data, 'filter-' + filterKey);
+      render(photosRes.data, filterKey);
     }
 
     load();
