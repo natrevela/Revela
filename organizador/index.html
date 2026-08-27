@@ -22,6 +22,7 @@
     }
     .wrap{max-width:960px; margin:0 auto;}
     header{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px;}
+    .header-right{display:flex; align-items:center; gap:14px;}
     h1{font-size:1.6rem; margin:0;}
     .count{font-family:ui-monospace, monospace; color:var(--paper-dim); font-size:0.9rem;}
     .count strong{color:var(--paper);}
@@ -59,13 +60,56 @@
       background:radial-gradient(circle at 72% 18%, rgba(255,221,163,0.42), transparent 55%);
       mix-blend-mode:screen;
     }
+
+    /* --- Login --- */
+    #loginView.wrap{min-height:calc(100vh - 88px); display:flex; align-items:center; justify-content:center;}
+    .login-card{
+      background:var(--darkroom-2); border:1px solid var(--line-strong); border-radius:14px;
+      padding:32px 28px; max-width:340px; width:100%; text-align:center; box-shadow:var(--shadow);
+    }
+    .login-card h1{font-size:1.5rem; margin:0 0 6px;}
+    .login-card p{color:var(--paper-dim); font-size:13.5px; margin:0 0 20px;}
+    .login-card form{display:flex; flex-direction:column; gap:10px;}
+    .login-card input{
+      font-family:inherit; font-size:14px; padding:11px 12px; border-radius:8px;
+      border:1px solid var(--line-strong); background:var(--darkroom); color:var(--paper);
+    }
+    .login-card input:focus{outline:2px solid var(--fixer); outline-offset:1px;}
+    .login-card button{
+      margin-top:4px; font-family:inherit; font-size:14px; font-weight:600; padding:11px 12px;
+      border-radius:8px; border:none; background:var(--amber); color:var(--darkroom); cursor:pointer;
+    }
+    .login-err{color:#d9694f; font-size:12.5px; margin-top:12px; min-height:16px;}
+
+    .logout-btn{
+      font-family:inherit; font-size:12px; padding:6px 12px; border-radius:999px;
+      border:1px solid var(--line-strong); background:transparent; color:var(--paper-dim); cursor:pointer;
+    }
+    .logout-btn:hover{color:var(--paper); border-color:var(--paper-dim);}
   </style>
 </head>
 <body>
-  <div class="wrap">
+
+  <div class="wrap" id="loginView">
+    <div class="login-card">
+      <h1>Revelado</h1>
+      <p>Inicia sesión para ver tu álbum</p>
+      <form id="loginForm">
+        <input type="email" id="loginEmail" placeholder="Correo" autocomplete="username" required>
+        <input type="password" id="loginPassword" placeholder="Contraseña" autocomplete="current-password" required>
+        <button type="submit">Entrar</button>
+      </form>
+      <div class="login-err" id="loginErr"></div>
+    </div>
+  </div>
+
+  <div class="wrap" id="albumView" hidden>
     <header>
       <h1>Álbum en vivo</h1>
-      <div class="count" id="count">cargando…</div>
+      <div class="header-right">
+        <div class="count" id="count">cargando…</div>
+        <button class="logout-btn" id="logoutBtn" type="button">Salir</button>
+      </div>
     </header>
     <div class="format-badge" id="formatBadge" hidden></div>
     <div id="content"></div>
@@ -77,6 +121,13 @@
     const EVENT_NAME = 'Mi evento';
 
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const loginView = document.getElementById('loginView');
+    const albumView = document.getElementById('albumView');
+    const loginForm = document.getElementById('loginForm');
+    const loginErr = document.getElementById('loginErr');
+    const logoutBtn = document.getElementById('logoutBtn');
+
     const countEl = document.getElementById('count');
     const contentEl = document.getElementById('content');
     const badgeEl = document.getElementById('formatBadge');
@@ -130,9 +181,49 @@
       render(photosRes.data, filterKey);
     }
 
-    load();
-    // Cada 6 segundos revisa fotos nuevas Y si el formato del evento cambió.
-    setInterval(load, 6000);
+    // --- Puerta de acceso: nadie ve el álbum sin haber iniciado sesión ---
+    let pollTimer = null;
+
+    function showAlbum() {
+      loginView.hidden = true;
+      albumView.hidden = false;
+      load();
+      if (!pollTimer) pollTimer = setInterval(load, 6000);
+    }
+
+    function showLogin() {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      albumView.hidden = true;
+      loginView.hidden = false;
+      loginForm.reset();
+    }
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loginErr.textContent = '';
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const { error } = await db.auth.signInWithPassword({ email, password });
+      if (error) {
+        loginErr.textContent = 'Correo o contraseña incorrectos.';
+        return;
+      }
+      showAlbum();
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+      await db.auth.signOut();
+      showLogin();
+    });
+
+    (async function init() {
+      const { data } = await db.auth.getSession();
+      if (data.session) {
+        showAlbum();
+      } else {
+        showLogin();
+      }
+    })();
   </script>
 </body>
 </html>
