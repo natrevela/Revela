@@ -21,10 +21,15 @@
       font-family:system-ui, sans-serif; padding:28px 20px 60px;
     }
     .wrap{max-width:960px; margin:0 auto;}
-    header{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:22px;}
+    header{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px;}
     h1{font-size:1.6rem; margin:0;}
     .count{font-family:ui-monospace, monospace; color:var(--paper-dim); font-size:0.9rem;}
     .count strong{color:var(--paper);}
+    .format-badge{
+      display:inline-block; margin-bottom:22px; font-size:11.5px; letter-spacing:0.04em; text-transform:uppercase;
+      color:var(--fixer); border:1px solid rgba(79,166,156,0.4); background:rgba(79,166,156,0.08);
+      padding:4px 10px; border-radius:999px;
+    }
 
     .empty{border:1px dashed var(--line-strong); border-radius:12px; padding:34px 20px; text-align:center; color:var(--paper-faint); font-size:14px;}
     .err{border:1px solid rgba(217,105,79,0.5); background:var(--darkroom-2); color:#f0b6a5; border-radius:10px; padding:12px 15px; font-size:13.5px; margin-bottom:18px;}
@@ -36,6 +41,11 @@
     .print:nth-child(3n){transform:rotate(-0.6deg);}
     .print img{width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:2px; display:block;}
     .print .ts{font-size:9px; color:var(--darkroom); opacity:0.55; margin-top:6px; text-align:center; font-family:ui-monospace, monospace;}
+
+    /* --- Los tres formatos, iguales a los de la página de la cámara --- */
+    .filter-vintage{ filter: sepia(0.35) saturate(1.4) contrast(0.9) brightness(1.08) hue-rotate(-6deg); }
+    .filter-bw{ filter: grayscale(1) contrast(1.15) brightness(1.02); }
+    .filter-polaroid{ filter: saturate(0.85) contrast(0.92) brightness(1.06) sepia(0.08); }
   </style>
 </head>
 <body>
@@ -44,18 +54,25 @@
       <h1>Álbum en vivo</h1>
       <div class="count" id="count">cargando…</div>
     </header>
+    <div class="format-badge" id="formatBadge" hidden></div>
     <div id="content"></div>
   </div>
 
   <script>
-    // Mismos datos de conexión que la página de la cámara — es el mismo proyecto de Supabase.
     const SUPABASE_URL = 'https://qhwxtgzqnztshmudabho.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFod3h0Z3pxbnp0c2htdWRhYmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTI5NzQsImV4cCI6MjEwMzM2ODk3NH0.ufpYauUWbbbJrAPOTY3zA6vQ9DfsYBEFXVsZrtPV2YU';
-    const EVENT_NAME = 'Mi evento'; // tiene que ser igual al de index.html, o no van a coincidir
+    const EVENT_NAME = 'Mi evento';
 
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const countEl = document.getElementById('count');
     const contentEl = document.getElementById('content');
+    const badgeEl = document.getElementById('formatBadge');
+
+    const FILTER_LABELS = {
+      vintage: 'Formato: película vintage',
+      bw: 'Formato: blanco y negro',
+      polaroid: 'Formato: polaroid suave'
+    };
 
     function esc(s){
       return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -67,36 +84,39 @@
       } catch (e) { return ''; }
     }
 
-    function render(photos) {
+    function render(photos, filterClass) {
       countEl.innerHTML = '<strong>' + photos.length + '</strong> foto' + (photos.length === 1 ? '' : 's');
       if (photos.length === 0) {
         contentEl.innerHTML = '<div class="empty">Aún no hay fotos. En cuanto alguien use la cámara, van a aparecer aquí solas.</div>';
         return;
       }
       contentEl.innerHTML = '<div class="grid">' + photos.map(p =>
-        '<div class="print"><img src="' + esc(p.photo_url) + '" alt="Foto del álbum" loading="lazy">' +
+        '<div class="print"><img class="' + esc(filterClass) + '" src="' + esc(p.photo_url) + '" alt="Foto del álbum" loading="lazy">' +
         '<div class="ts">' + esc(fmtTime(p.created_at)) + '</div></div>'
       ).join('') + '</div>';
     }
 
     async function load() {
-      const { data, error } = await db
-        .from('photos')
-        .select('*')
-        .eq('event_name', EVENT_NAME)
-        .order('created_at', { ascending: false });
+      const [eventRes, photosRes] = await Promise.all([
+        db.from('events').select('filter').eq('name', EVENT_NAME).single(),
+        db.from('photos').select('*').eq('event_name', EVENT_NAME).order('created_at', { ascending: false })
+      ]);
 
-      if (error) {
-        contentEl.innerHTML = '<div class="err">No se pudo cargar el álbum: ' + esc(error.message) + '</div>';
+      if (photosRes.error) {
+        contentEl.innerHTML = '<div class="err">No se pudo cargar el álbum: ' + esc(photosRes.error.message) + '</div>';
         countEl.textContent = '';
         return;
       }
-      render(data);
+
+      const filterKey = (!eventRes.error && eventRes.data && eventRes.data.filter) ? eventRes.data.filter : 'vintage';
+      badgeEl.textContent = FILTER_LABELS[filterKey] || FILTER_LABELS.vintage;
+      badgeEl.hidden = false;
+
+      render(photosRes.data, 'filter-' + filterKey);
     }
 
     load();
-    // Cada 6 segundos vuelve a preguntarle a Supabase si hay fotos nuevas — así se siente "en vivo"
-    // sin nada más complicado. Más adelante se puede cambiar por algo que avise al instante.
+    // Cada 6 segundos revisa fotos nuevas Y si el formato del evento cambió.
     setInterval(load, 6000);
   </script>
 </body>
