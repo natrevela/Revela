@@ -2,11 +2,9 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Revelado</title>
-
-  <!-- Esta línea trae la librería de Supabase, lista para usar como "supabase.createClient(...)" -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Revelado — Fotos de tu evento, reveladas al instante</title>
+  <meta name="description" content="Tus invitados escanean un QR y toman fotos con su propio celular, sin instalar nada. Todas las fotos aparecen al instante en un álbum en vivo.">
 
   <style>
     :root{
@@ -14,175 +12,198 @@
       --paper:#f3e9d7; --paper-dim:#c2b498; --paper-faint:#8a7d65;
       --amber:#e8823c; --amber-bright:#ffa858; --fixer:#4fa69c;
       --line:rgba(243,233,215,0.14); --line-strong:rgba(243,233,215,0.26);
+      --shadow:0 14px 30px -16px rgba(0,0,0,0.7);
     }
     *,*::before,*::after{box-sizing:border-box;}
     body{
-      margin:0; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
-      background:var(--darkroom); color:var(--paper); font-family:system-ui, sans-serif; text-align:center; padding:24px;
+      margin:0; background:var(--darkroom); color:var(--paper);
+      font-family:system-ui, sans-serif; line-height:1.5;
     }
-    h1{font-size:2rem; margin:0 0 6px;}
-    p{color:var(--paper-dim); margin:0 0 28px; max-width:34ch;}
+    a{color:inherit;}
+    .wrap{max-width:1040px; margin:0 auto; padding:0 20px;}
 
-    .frame-card{margin-bottom:26px;}
-    /* Cuando el formato es "polaroid", esta tarjeta blanca envuelve la foto,
-       con más espacio abajo que a los lados -- así se ve como una polaroid real. */
-    .frame-card.polaroid-card{
-      background:#ffffff; padding:14px 14px 46px; border-radius:4px;
-      box-shadow:0 14px 30px -16px rgba(0,0,0,0.55);
+    /* --- Nav --- */
+    nav.wrap{display:flex; align-items:center; justify-content:space-between; padding-top:22px; padding-bottom:22px;}
+    .logo{font-size:1.25rem; font-weight:700; letter-spacing:-0.01em;}
+    .nav-login{
+      font-size:13px; color:var(--paper-dim); text-decoration:none; border:1px solid var(--line-strong);
+      padding:7px 14px; border-radius:999px; white-space:nowrap;
     }
-    .frame{
-      width:min(280px, 78vw); aspect-ratio:1/1; background:#1b1512; border-radius:12px;
-      display:flex; align-items:center; justify-content:center; overflow:hidden;
-      border:1px solid var(--line-strong); position:relative;
+    .nav-login:hover{color:var(--paper); border-color:var(--paper-dim);}
+
+    /* --- Hero --- */
+    .hero{padding:36px 0 56px; text-align:center;}
+    .hero h1{font-size:2.4rem; line-height:1.15; margin:0 0 16px; max-width:20ch; margin-left:auto; margin-right:auto;}
+    .hero h1 em{color:var(--amber-bright); font-style:normal;}
+    .hero p{color:var(--paper-dim); font-size:1.05rem; max-width:44ch; margin:0 auto 28px;}
+    .btn{
+      display:inline-flex; align-items:center; gap:8px; font-family:inherit; font-size:15px; font-weight:600;
+      text-decoration:none; cursor:pointer; border-radius:999px; padding:13px 26px; border:none;
     }
-    .frame-card.polaroid-card .frame{border-radius:2px; border:none;}
-    .frame img{width:100%; height:100%; object-fit:cover; display:block;}
-    .frame .placeholder{color:var(--paper-faint); font-size:13px; padding:16px;}
+    .btn-primary{background:var(--amber); color:var(--darkroom);}
+    .btn-primary:hover{background:var(--amber-bright);}
+    .btn-ghost{background:transparent; color:var(--paper); border:1px solid var(--line-strong);}
+    .btn-ghost:hover{border-color:var(--paper-dim);}
 
-    /* --- Los tres formatos. Cuál se usa lo decide la tabla "events", no el navegador. --- */
-    /* vintage: foto vieja, desvanecida por el sol -- poco contraste, poca saturación, luces quemadas */
-    .filter-vintage{ filter: sepia(0.18) saturate(0.8) contrast(0.78) brightness(1.16) hue-rotate(-4deg); }
-    /* blanco y negro: mucho contraste real, sombras profundas, no solo "sin color" */
-    .filter-bw{ filter: grayscale(1) contrast(1.32) brightness(0.94); }
-    .filter-polaroid{ filter: saturate(0.85) contrast(0.92) brightness(1.06) sepia(0.08); }
-
-    /* el brillo cálido de luz que trae el formato vintage, encima del filtro de color */
-    .frame.vintage-glow::after{
-      content:""; position:absolute; inset:0; pointer-events:none;
-      background:radial-gradient(circle at 72% 18%, rgba(255,221,163,0.42), transparent 55%);
-      mix-blend-mode:screen;
+    /* --- Cómo funciona --- */
+    .how{padding:20px 0 60px;}
+    .how h2, .pricing h2{text-align:center; font-size:1.6rem; margin:0 0 8px;}
+    .section-sub{text-align:center; color:var(--paper-dim); font-size:14.5px; margin:0 0 36px;}
+    .steps{display:grid; gap:18px; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));}
+    .step{
+      background:var(--darkroom-2); border:1px solid var(--line); border-radius:14px; padding:22px 20px;
     }
-
-    button{font-family:inherit; cursor:pointer;}
-    .shutter-btn{
-      width:84px; height:84px; border-radius:50%;
-      background:radial-gradient(circle at 35% 30%, var(--amber-bright), var(--amber) 65%);
-      border:4px solid var(--darkroom-2); display:flex; align-items:center; justify-content:center;
+    .step-num{
+      width:30px; height:30px; border-radius:50%; background:rgba(232,130,60,0.14); color:var(--amber-bright);
+      display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; margin-bottom:14px;
     }
-    .shutter-btn svg{width:30px; height:30px;}
-    .shutter-btn:disabled{opacity:0.5;}
-    input[type="file"]{display:none;}
+    .step h3{font-size:1rem; margin:0 0 6px;}
+    .step p{color:var(--paper-dim); font-size:13.5px; margin:0;}
 
-    .status{margin-top:20px; font-size:13.5px; color:var(--paper-dim); min-height:20px;}
-    .status.ok{color:var(--fixer);}
-    .status.err{color:#d9694f;}
+    /* --- Formatos --- */
+    .formats{padding:10px 0 60px;}
+    .format-grid{display:grid; gap:16px; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));}
+    .format-chip{
+      background:var(--darkroom-2); border:1px solid var(--line); border-radius:12px; padding:18px 16px; text-align:center;
+    }
+    .format-chip .dot{width:34px; height:34px; border-radius:50%; margin:0 auto 10px;}
+    .format-chip.vintage .dot{background:linear-gradient(135deg, #d9a25c, #8a5a2e);}
+    .format-chip.bw .dot{background:linear-gradient(135deg, #eee, #333);}
+    .format-chip.polaroid .dot{background:#ffffff; border:1px solid var(--line-strong);}
+    .format-chip strong{display:block; font-size:14px; margin-bottom:4px;}
+    .format-chip span{color:var(--paper-dim); font-size:12.5px;}
+
+    /* --- Precios --- */
+    .pricing{padding:10px 0 64px;}
+    .plans{display:grid; gap:18px; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));}
+    .plan{
+      background:var(--darkroom-2); border:1px solid var(--line); border-radius:16px; padding:26px 24px;
+      display:flex; flex-direction:column; gap:14px;
+    }
+    .plan.featured{border-color:rgba(232,130,60,0.55); box-shadow:var(--shadow);}
+    .plan-tag{
+      font-size:11px; letter-spacing:0.05em; text-transform:uppercase; color:var(--amber-bright);
+      font-weight:700;
+    }
+    .plan h3{font-size:1.25rem; margin:0;}
+    .plan .price{font-size:1.6rem; font-weight:700;}
+    .plan .price small{font-size:12px; font-weight:400; color:var(--paper-faint);}
+    .plan ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
+    .plan li{font-size:13.5px; color:var(--paper-dim); padding-left:20px; position:relative;}
+    .plan li::before{content:"✓"; position:absolute; left:0; color:var(--fixer);}
+    .plan .btn{justify-content:center; margin-top:6px;}
+    .price-pending{color:var(--paper-faint); font-size:11px; font-style:italic;}
+
+    /* --- Footer / contacto --- */
+    footer{border-top:1px solid var(--line); padding:32px 0 40px; text-align:center;}
+    footer p{color:var(--paper-faint); font-size:12.5px; margin:0 0 14px;}
+    footer .btn{font-size:13.5px; padding:10px 20px;}
   </style>
 </head>
 <body>
 
-  <h1>Revelado 📸</h1>
-  <p>Toca el obturador y tu foto entra directo al álbum.</p>
+  <nav class="wrap">
+    <div class="logo">Revelado 📸</div>
+    <a class="nav-login" href="/organizador/">Ya tengo un evento</a>
+  </nav>
 
-  <div class="frame-card" id="frameCard">
-    <div class="frame" id="frame"><div class="placeholder">Aquí aparecerá tu foto</div></div>
-  </div>
+  <header class="hero wrap">
+    <h1>Las fotos de tu evento, <em>reveladas</em> al momento</h1>
+    <p>Tus invitados escanean un QR y toman fotos con su propio celular — sin instalar nada. Todas las fotos caen solas en un álbum en vivo que puedes ver mientras el evento sigue pasando.</p>
+    <a class="btn btn-primary" href="https://wa.me/525534635250?text=Hola%2C%20quiero%20m%C3%A1s%20informaci%C3%B3n%20sobre%20Revelado%20para%20mi%20evento">Cotizar mi evento</a>
+  </header>
 
-  <button class="shutter-btn" id="shutterBtn" aria-label="Tomar foto">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#150f0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path><circle cx="12" cy="13" r="3.4"></circle></svg>
-  </button>
-  <input type="file" id="cameraInput" accept="image/*" capture="environment">
+  <section class="how wrap">
+    <h2>Cómo funciona</h2>
+    <p class="section-sub">Nada que instalar, nada que descargar — ni para ti ni para tus invitados.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Colocas el QR</h3>
+        <p>En las mesas, en el letrero de bienvenida, o donde tú quieras. Cada invitado lo escanea con la cámara de su celular.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Toman la foto</h3>
+        <p>Se abre directo en el navegador del celular — sin apps, sin cuentas, sin fricción. Tocan el obturador y listo.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Aparece en el álbum</h3>
+        <p>La foto entra al instante al álbum en vivo del evento, ya con el formato que elegiste, para que todos la vean pasar en tiempo real.</p>
+      </div>
+    </div>
+  </section>
 
-  <div class="status" id="status"></div>
+  <section class="formats wrap">
+    <h2>Elige el formato de tu evento</h2>
+    <p class="section-sub">Cada evento tiene un estilo visual — así todas las fotos se ven parte de la misma sesión.</p>
+    <div class="format-grid">
+      <div class="format-chip vintage">
+        <div class="dot"></div>
+        <strong>Vintage</strong>
+        <span>Cálido y desvanecido, como una foto vieja</span>
+      </div>
+      <div class="format-chip bw">
+        <div class="dot"></div>
+        <strong>Blanco y negro</strong>
+        <span>Contraste profundo, mucho carácter</span>
+      </div>
+      <div class="format-chip polaroid">
+        <div class="dot"></div>
+        <strong>Polaroid</strong>
+        <span>Con su marco blanco clásico</span>
+      </div>
+    </div>
+  </section>
 
-  <script>
-    // --- 1) Conexión con Supabase -------------------------------------
-    const SUPABASE_URL = 'https://qhwxtgzqnztshmudabho.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFod3h0Z3pxbnp0c2htdWRhYmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTI5NzQsImV4cCI6MjEwMzM2ODk3NH0.ufpYauUWbbbJrAPOTY3zA6vQ9DfsYBEFXVsZrtPV2YU';
-    const EVENT_NAME = 'Mi evento';
+  <section class="pricing wrap" id="paquetes">
+    <h2>Paquetes</h2>
+    <p class="section-sub">Cada QR tiene un solo formato activo — si quieres más de uno disponible, es un paquete distinto.</p>
+    <div class="plans">
+      <div class="plan">
+        <div class="plan-tag">1 formato</div>
+        <h3>Paquete Sencillo</h3>
+        <div class="price">$[PENDIENTE] <small>MXN / evento</small></div>
+        <div class="price-pending">Precio por definir</div>
+        <ul>
+          <li>Un formato a elegir (vintage, blanco y negro o polaroid)</li>
+          <li>QR y álbum en vivo para tu evento</li>
+          <li>Fotos ilimitadas de tus invitados</li>
+        </ul>
+        <a class="btn btn-ghost" href="https://wa.me/525534635250?text=Hola%2C%20me%20interesa%20el%20Paquete%20Sencillo%20de%20Revelado%20%281%20formato%29%20para%20mi%20evento">Quiero este paquete</a>
+      </div>
+      <div class="plan featured">
+        <div class="plan-tag">2 formatos</div>
+        <h3>Paquete Doble</h3>
+        <div class="price">$[PENDIENTE] <small>MXN / evento</small></div>
+        <div class="price-pending">Precio por definir</div>
+        <ul>
+          <li>Dos formatos a elegir</li>
+          <li>QR y álbum en vivo para tu evento</li>
+          <li>Fotos ilimitadas de tus invitados</li>
+        </ul>
+        <a class="btn btn-primary" href="https://wa.me/525534635250?text=Hola%2C%20me%20interesa%20el%20Paquete%20Doble%20de%20Revelado%20%282%20formatos%29%20para%20mi%20evento">Quiero este paquete</a>
+      </div>
+      <div class="plan">
+        <div class="plan-tag">3 formatos</div>
+        <h3>Paquete Completo</h3>
+        <div class="price">$[PENDIENTE] <small>MXN / evento</small></div>
+        <div class="price-pending">Precio por definir</div>
+        <ul>
+          <li>Los tres formatos disponibles</li>
+          <li>QR y álbum en vivo para tu evento</li>
+          <li>Fotos ilimitadas de tus invitados</li>
+        </ul>
+        <a class="btn btn-ghost" href="https://wa.me/525534635250?text=Hola%2C%20me%20interesa%20el%20Paquete%20Completo%20de%20Revelado%20%28los%203%20formatos%29%20para%20mi%20evento">Quiero este paquete</a>
+      </div>
+    </div>
+  </section>
 
-    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  <footer class="wrap">
+    <p>¿Tienes dudas sobre tu evento? Escríbenos directo.</p>
+    <a class="btn btn-primary" href="https://wa.me/525534635250?text=Hola%2C%20quiero%20m%C3%A1s%20informaci%C3%B3n%20sobre%20Revelado%20para%20mi%20evento">Hablar por WhatsApp</a>
+  </footer>
 
-    // --- 2) Elementos de la página --------------------------------------
-    const shutterBtn = document.getElementById('shutterBtn');
-    const cameraInput = document.getElementById('cameraInput');
-    const frame = document.getElementById('frame');
-    const statusEl = document.getElementById('status');
-
-    function setStatus(text, kind) {
-      statusEl.textContent = text || '';
-      statusEl.className = 'status' + (kind ? ' ' + kind : '');
-    }
-
-    // --- 3) El formato del evento se lee una vez, de la tabla "events" --
-    // Nadie lo elige desde aquí: viene fijo según el paquete que se compró.
-    let filterClass = 'filter-vintage'; // mientras carga, o si algo falla
-    (async function loadEventFilter() {
-      try {
-        const { data, error } = await db.from('events').select('filter').eq('name', EVENT_NAME).single();
-        if (!error && data && data.filter) filterClass = 'filter-' + data.filter;
-      } catch (e) { /* se queda con el formato por defecto */ }
-      // si el formato es polaroid, la tarjeta blanca con marco se activa aquí
-      document.getElementById('frameCard').classList.toggle('polaroid-card', filterClass === 'filter-polaroid');
-      // si el formato es vintage, el brillito cálido se activa aquí
-      document.getElementById('frame').classList.toggle('vintage-glow', filterClass === 'filter-vintage');
-    })();
-
-    // --- 4) Achicar la foto antes de subirla ---------------------------
-    function compress(file) {
-      return new Promise((resolve, reject) => {
-        const maxDim = 1200;
-        function draw(source, w, h) {
-          const scale = Math.min(1, maxDim / Math.max(w, h));
-          const canvas = document.createElement('canvas');
-          canvas.width = Math.round(w * scale);
-          canvas.height = Math.round(h * scale);
-          canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height);
-          canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('no blob')), 'image/jpeg', 0.7);
-        }
-        function fallback() {
-          const img = new Image();
-          const url = URL.createObjectURL(file);
-          img.onload = () => { draw(img, img.naturalWidth, img.naturalHeight); URL.revokeObjectURL(url); };
-          img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
-          img.src = url;
-        }
-        if (window.createImageBitmap) {
-          createImageBitmap(file, { imageOrientation: 'from-image' }).then(bmp => draw(bmp, bmp.width, bmp.height)).catch(fallback);
-        } else {
-          fallback();
-        }
-      });
-    }
-
-    // --- 5) El flujo completo: foto -> Supabase Storage -> tabla photos
-    shutterBtn.addEventListener('click', () => cameraInput.click());
-
-    cameraInput.addEventListener('change', async () => {
-      const file = cameraInput.files[0];
-      if (!file) return;
-
-      shutterBtn.disabled = true;
-      setStatus('Revelando…');
-
-      try {
-        const blob = await compress(file);
-
-        // vista previa local, YA con el formato del evento aplicado
-        frame.innerHTML = '';
-        const img = document.createElement('img');
-        img.className = filterClass;
-        img.src = URL.createObjectURL(blob);
-        frame.appendChild(img);
-
-        const path = EVENT_NAME.replace(/\s+/g, '-').toLowerCase() + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
-
-        const { error: uploadError } = await db.storage.from('fotos').upload(path, blob, { contentType: 'image/jpeg' });
-        if (uploadError) throw uploadError;
-
-        const { data: pub } = db.storage.from('fotos').getPublicUrl(path);
-
-        const { error: insertError } = await db.from('photos').insert({ event_name: EVENT_NAME, photo_url: pub.publicUrl });
-        if (insertError) throw insertError;
-
-        setStatus('¡Lista! Ya está en el álbum.', 'ok');
-      } catch (err) {
-        console.error(err);
-        setStatus('No se pudo subir: ' + (err.message || 'intenta de nuevo'), 'err');
-      } finally {
-        shutterBtn.disabled = false;
-        cameraInput.value = '';
-      }
-    });
-  </script>
 </body>
 </html>
