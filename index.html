@@ -2,31 +2,150 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <!-- Esto le dice al navegador que la página se vea bien también en el celular -->
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Revelado</title>
+
+  <!-- Esta línea trae la librería de Supabase, lista para usar como "supabase.createClient(...)" -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
-    /* Todo lo de aquí adentro son las REGLAS DE ESTILO: colores, tamaños, espacios */
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #150f0a;
-      color: #f3e9d7;
-      font-family: system-ui, sans-serif;
-      text-align: center;
+    :root{
+      --darkroom:#150f0a; --darkroom-2:#221a12; --darkroom-3:#2c2117;
+      --paper:#f3e9d7; --paper-dim:#c2b498; --paper-faint:#8a7d65;
+      --amber:#e8823c; --amber-bright:#ffa858; --fixer:#4fa69c;
+      --line:rgba(243,233,215,0.14); --line-strong:rgba(243,233,215,0.26);
     }
-    h1 { font-size: 2.5rem; letter-spacing: 0.02em; }
-    p { color: #c2b498; }
+    *,*::before,*::after{box-sizing:border-box;}
+    body{
+      margin:0; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      background:var(--darkroom); color:var(--paper); font-family:system-ui, sans-serif; text-align:center; padding:24px;
+    }
+    h1{font-size:2rem; margin:0 0 6px;}
+    p{color:var(--paper-dim); margin:0 0 28px; max-width:34ch;}
+
+    .frame{
+      width:min(280px, 78vw); aspect-ratio:1/1; background:#1b1512; border-radius:12px;
+      display:flex; align-items:center; justify-content:center; overflow:hidden; margin-bottom:26px;
+      border:1px solid var(--line-strong);
+    }
+    .frame img{width:100%; height:100%; object-fit:cover; display:block;}
+    .frame .placeholder{color:var(--paper-faint); font-size:13px; padding:16px;}
+
+    button{font-family:inherit; cursor:pointer;}
+    .shutter-btn{
+      width:84px; height:84px; border-radius:50%;
+      background:radial-gradient(circle at 35% 30%, var(--amber-bright), var(--amber) 65%);
+      border:4px solid var(--darkroom-2); display:flex; align-items:center; justify-content:center;
+    }
+    .shutter-btn svg{width:30px; height:30px;}
+    .shutter-btn:disabled{opacity:0.5;}
+    input[type="file"]{display:none;}
+
+    .status{margin-top:20px; font-size:13.5px; color:var(--paper-dim); min-height:20px;}
+    .status.ok{color:var(--fixer);}
+    .status.err{color:#d9694f;}
   </style>
 </head>
 <body>
-  <!-- Todo lo de aquí adentro es lo que REALMENTE ves en la pantalla -->
-  <div>
-    <h1>Revelado 📸</h1>
-    <p>Hecho por Natalia Miguel</p>
-  </div>
+
+  <h1>Revelado 📸</h1>
+  <p>Toca el obturador y tu foto entra directo al álbum.</p>
+
+  <div class="frame" id="frame"><div class="placeholder">Aquí aparecerá tu foto</div></div>
+
+  <button class="shutter-btn" id="shutterBtn" aria-label="Tomar foto">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#150f0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path><circle cx="12" cy="13" r="3.4"></circle></svg>
+  </button>
+  <input type="file" id="cameraInput" accept="image/*" capture="environment">
+
+  <div class="status" id="status"></div>
+
+  <script>
+    // --- 1) Conexión con Supabase -------------------------------------
+    // La URL y la llave "anon" no son secretas: están hechas para vivir aquí, a la vista.
+    const SUPABASE_URL = 'https://qhwxtgzqnztshmudabho.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFod3h0Z3pxbnp0c2htdWRhYmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTI5NzQsImV4cCI6MjEwMzM2ODk3NH0.ufpYauUWbbbJrAPOTY3zA6vQ9DfsYBEFXVsZrtPV2YU';
+    const EVENT_NAME = 'Mi evento'; // luego esto va a venir del panel del organizador
+
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // --- 2) Elementos de la página --------------------------------------
+    const shutterBtn = document.getElementById('shutterBtn');
+    const cameraInput = document.getElementById('cameraInput');
+    const frame = document.getElementById('frame');
+    const statusEl = document.getElementById('status');
+
+    function setStatus(text, kind) {
+      statusEl.textContent = text || '';
+      statusEl.className = 'status' + (kind ? ' ' + kind : '');
+    }
+
+    // --- 3) Achicar la foto antes de subirla (más rápido, pesa menos) --
+    function compress(file) {
+      return new Promise((resolve, reject) => {
+        const maxDim = 1200;
+        function draw(source, w, h) {
+          const scale = Math.min(1, maxDim / Math.max(w, h));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(w * scale);
+          canvas.height = Math.round(h * scale);
+          canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('no blob')), 'image/jpeg', 0.7);
+        }
+        function fallback() {
+          const img = new Image();
+          const url = URL.createObjectURL(file);
+          img.onload = () => { draw(img, img.naturalWidth, img.naturalHeight); URL.revokeObjectURL(url); };
+          img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+          img.src = url;
+        }
+        if (window.createImageBitmap) {
+          createImageBitmap(file, { imageOrientation: 'from-image' }).then(bmp => draw(bmp, bmp.width, bmp.height)).catch(fallback);
+        } else {
+          fallback();
+        }
+      });
+    }
+
+    // --- 4) El flujo completo: foto -> Supabase Storage -> tabla photos
+    shutterBtn.addEventListener('click', () => cameraInput.click());
+
+    cameraInput.addEventListener('change', async () => {
+      const file = cameraInput.files[0];
+      if (!file) return;
+
+      shutterBtn.disabled = true;
+      setStatus('Revelando…');
+
+      try {
+        const blob = await compress(file);
+
+        // vista previa local, antes de subir
+        frame.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(blob);
+        frame.appendChild(img);
+
+        // nombre de archivo único para que no se sobreescriban entre sí
+        const path = EVENT_NAME.replace(/\s+/g, '-').toLowerCase() + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
+
+        const { error: uploadError } = await db.storage.from('fotos').upload(path, blob, { contentType: 'image/jpeg' });
+        if (uploadError) throw uploadError;
+
+        const { data: pub } = db.storage.from('fotos').getPublicUrl(path);
+
+        const { error: insertError } = await db.from('photos').insert({ event_name: EVENT_NAME, photo_url: pub.publicUrl });
+        if (insertError) throw insertError;
+
+        setStatus('¡Lista! Ya está en el álbum.', 'ok');
+      } catch (err) {
+        console.error(err);
+        setStatus('No se pudo subir: ' + (err.message || 'intenta de nuevo'), 'err');
+      } finally {
+        shutterBtn.disabled = false;
+        cameraInput.value = '';
+      }
+    });
+  </script>
 </body>
 </html>
