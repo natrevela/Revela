@@ -3,15 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Revelado — Álbum</title>
+  <title>Revelado — Panel</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@2.0.4/dist/qrcode.js"></script>
 
   <style>
     :root{
       --darkroom:#150f0a; --darkroom-2:#221a12; --darkroom-3:#2c2117;
       --paper:#f3e9d7; --paper-dim:#c2b498; --paper-faint:#8a7d65;
-      --amber:#e8823c; --fixer:#4fa69c;
+      --amber:#e8823c; --amber-bright:#ffa858; --fixer:#4fa69c;
       --line:rgba(243,233,215,0.14); --line-strong:rgba(243,233,215,0.26);
       --shadow:0 14px 30px -16px rgba(0,0,0,0.7);
     }
@@ -20,49 +21,24 @@
       margin:0; min-height:100vh; background:var(--darkroom); color:var(--paper);
       font-family:system-ui, sans-serif; padding:28px 20px 60px;
     }
-    .wrap{max-width:960px; margin:0 auto;}
-    header{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px;}
-    .header-right{display:flex; align-items:center; gap:14px;}
-    h1{font-size:1.6rem; margin:0;}
-    .count{font-family:ui-monospace, monospace; color:var(--paper-dim); font-size:0.9rem;}
-    .count strong{color:var(--paper);}
-    .format-badge{
-      display:inline-block; margin-bottom:22px; font-size:11.5px; letter-spacing:0.04em; text-transform:uppercase;
-      color:var(--fixer); border:1px solid rgba(79,166,156,0.4); background:rgba(79,166,156,0.08);
-      padding:4px 10px; border-radius:999px;
+    .wrap{max-width:1000px; margin:0 auto;}
+    a{color:inherit;}
+
+    button{font-family:inherit; cursor:pointer;}
+    .logout-btn{
+      font-size:12px; padding:6px 12px; border-radius:999px;
+      border:1px solid var(--line-strong); background:transparent; color:var(--paper-dim);
     }
-
-    .empty{border:1px dashed var(--line-strong); border-radius:12px; padding:34px 20px; text-align:center; color:var(--paper-faint); font-size:14px;}
-    .err{border:1px solid rgba(217,105,79,0.5); background:var(--darkroom-2); color:#f0b6a5; border-radius:10px; padding:12px 15px; font-size:13.5px; margin-bottom:18px;}
-
-    .grid{display:grid; gap:16px; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));}
-    .print{background:var(--paper); border-radius:3px; padding:8px 8px 22px; box-shadow:var(--shadow);}
-    .print:nth-child(3n+1){transform:rotate(-1.6deg);}
-    .print:nth-child(3n+2){transform:rotate(1.2deg);}
-    .print:nth-child(3n){transform:rotate(-0.6deg);}
-    .print .ts{font-size:9px; color:var(--darkroom); opacity:0.55; margin-top:6px; text-align:center; font-family:ui-monospace, monospace;}
-    .shot{position:relative; display:block; overflow:hidden; border-radius:2px;}
-    .print img{width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:2px; display:block;}
-
-    /* El formato "polaroid" usa un marco más blanco y con más aire abajo -- la franja clásica. */
-    .print.polaroid-card{background:#ffffff; padding:14px 14px 46px;}
-
-    /* --- Los tres formatos, iguales a los de la página de la cámara --- */
-    /* vintage: foto vieja, desvanecida por el sol -- poco contraste, poca saturación, luces quemadas */
-    .filter-vintage{ filter: sepia(0.18) saturate(0.8) contrast(0.78) brightness(1.16) hue-rotate(-4deg); }
-    /* blanco y negro: mucho contraste real, sombras profundas, no solo "sin color" */
-    .filter-bw{ filter: grayscale(1) contrast(1.32) brightness(0.94); }
-    .filter-polaroid{ filter: saturate(0.85) contrast(0.92) brightness(1.06) sepia(0.08); }
-
-    /* el brillo cálido de luz que trae el formato vintage, encima del filtro de color */
-    .shot.vintage-glow::after{
-      content:""; position:absolute; inset:0; pointer-events:none;
-      background:radial-gradient(circle at 72% 18%, rgba(255,221,163,0.42), transparent 55%);
-      mix-blend-mode:screen;
+    .logout-btn:hover{color:var(--paper); border-color:var(--paper-dim);}
+    .btn-primary{
+      font-size:15px; font-weight:600; padding:13px 26px; border-radius:999px; border:none;
+      background:var(--amber); color:var(--darkroom);
     }
+    .btn-primary:hover{background:var(--amber-bright);}
+    .btn-primary:disabled{opacity:0.6; cursor:default;}
 
     /* --- Login --- */
-    #loginView.wrap{min-height:calc(100vh - 88px); display:flex; align-items:center; justify-content:center;}
+    #loginView.wrap{min-height:calc(100vh - 56px); display:flex; align-items:center; justify-content:center;}
     .login-card{
       background:var(--darkroom-2); border:1px solid var(--line-strong); border-radius:14px;
       padding:32px 28px; max-width:340px; width:100%; text-align:center; box-shadow:var(--shadow);
@@ -75,17 +51,103 @@
       border:1px solid var(--line-strong); background:var(--darkroom); color:var(--paper);
     }
     .login-card input:focus{outline:2px solid var(--fixer); outline-offset:1px;}
-    .login-card button{
+    .login-card button[type="submit"]{
       margin-top:4px; font-family:inherit; font-size:14px; font-weight:600; padding:11px 12px;
-      border-radius:8px; border:none; background:var(--amber); color:var(--darkroom); cursor:pointer;
+      border-radius:8px; border:none; background:var(--amber); color:var(--darkroom);
     }
     .login-err{color:#d9694f; font-size:12.5px; margin-top:12px; min-height:16px;}
 
-    .logout-btn{
-      font-family:inherit; font-size:12px; padding:6px 12px; border-radius:999px;
-      border:1px solid var(--line-strong); background:transparent; color:var(--paper-dim); cursor:pointer;
+    /* --- Pantalla de pago pendiente --- */
+    #pendingView.wrap{min-height:calc(100vh - 56px); display:flex; align-items:center; justify-content:center;}
+    .pending-card{
+      background:var(--darkroom-2); border:1px solid var(--line-strong); border-radius:16px;
+      padding:34px 28px; max-width:420px; width:100%; text-align:center; box-shadow:var(--shadow);
     }
-    .logout-btn:hover{color:var(--paper); border-color:var(--paper-dim);}
+    .pending-card h1{font-size:1.4rem; margin:0 0 10px;}
+    .pending-card h1 span{color:var(--amber-bright);}
+    .pending-card > p{color:var(--paper-dim); font-size:13.5px; line-height:1.6; margin:0 0 20px;}
+    .pending-details{
+      display:flex; flex-direction:column; gap:6px; align-items:center; font-size:13px; color:var(--paper-dim);
+      background:var(--darkroom); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:22px;
+    }
+    .pending-err{color:#d9694f; font-size:12.5px; margin-top:14px; min-height:16px;}
+    .pending-card .logout-btn{margin-top:18px;}
+
+    /* --- Dashboard --- */
+    .dash-header{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;
+      margin-bottom:20px;
+    }
+    .eyebrow{font-size:11.5px; letter-spacing:0.05em; text-transform:uppercase; color:var(--amber-bright); font-weight:700; margin-bottom:4px;}
+    .dash-header h1{font-size:1.7rem; margin:0 0 8px;}
+    .event-meta{display:flex; gap:16px; flex-wrap:wrap; color:var(--paper-dim); font-size:13px;}
+
+    .dash-row{display:grid; gap:14px; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); margin-bottom:24px;}
+    .stat-card{
+      background:var(--darkroom-2); border:1px solid var(--line); border-radius:14px;
+      padding:18px 20px; display:flex; flex-direction:column; justify-content:center;
+    }
+    .stat-value{font-size:1.7rem; font-weight:700; display:flex; align-items:center;}
+    .stat-label{color:var(--paper-dim); font-size:12px; margin-top:2px;}
+    .live-dot{
+      display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--fixer);
+      margin-right:8px; animation:pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse{
+      0%,100%{ box-shadow:0 0 0 0 rgba(79,166,156,0.5); }
+      50%{ box-shadow:0 0 0 6px rgba(79,166,156,0); }
+    }
+    .format-card .format-value{font-size:1.05rem; font-weight:700; color:var(--fixer);}
+
+    .qr-card{
+      background:var(--darkroom-2); border:1px solid var(--line); border-radius:14px;
+      padding:16px; display:flex; gap:14px; align-items:center; grid-column:span 2;
+    }
+    .qr-box{
+      background:#ffffff; padding:8px; border-radius:8px; width:84px; height:84px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .qr-box svg{width:100%; height:100%; display:block;}
+    .qr-info{flex:1; min-width:0;}
+    .qr-info h2{font-size:0.85rem; margin:0 0 6px; color:var(--paper-dim); font-weight:600;}
+    .qr-link{
+      font-family:ui-monospace, monospace; font-size:11px; color:var(--paper-dim);
+      background:var(--darkroom); border:1px solid var(--line); border-radius:6px; padding:6px 8px;
+      word-break:break-all; margin-bottom:8px;
+    }
+    .qr-actions{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+    .qr-actions button, .qr-actions a{
+      font-family:inherit; font-size:11.5px; font-weight:600; padding:6px 12px; border-radius:999px;
+      border:1px solid var(--line-strong); background:transparent; color:var(--paper); cursor:pointer; text-decoration:none;
+    }
+    .qr-actions button:hover, .qr-actions a:hover{border-color:var(--paper-dim);}
+    .qr-copied{color:var(--fixer); font-size:11px;}
+
+    .empty{border:1px dashed var(--line-strong); border-radius:12px; padding:34px 20px; text-align:center; color:var(--paper-faint); font-size:14px;}
+    .err{border:1px solid rgba(217,105,79,0.5); background:var(--darkroom-2); color:#f0b6a5; border-radius:10px; padding:12px 15px; font-size:13.5px; margin-bottom:18px;}
+
+    .grid{display:grid; gap:16px; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));}
+    .print{background:var(--paper); border-radius:3px; padding:8px 8px 22px; box-shadow:0 14px 30px -16px rgba(0,0,0,0.7);}
+    .print:nth-child(3n+1){transform:rotate(-1.6deg);}
+    .print:nth-child(3n+2){transform:rotate(1.2deg);}
+    .print:nth-child(3n){transform:rotate(-0.6deg);}
+    .print .ts{font-size:9px; color:var(--darkroom); opacity:0.55; margin-top:6px; text-align:center; font-family:ui-monospace, monospace;}
+    .shot{position:relative; display:block; overflow:hidden; border-radius:2px;}
+    .print img{width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:2px; display:block;}
+    .print.polaroid-card{background:#ffffff; padding:14px 14px 46px;}
+
+    .filter-vintage{ filter: sepia(0.18) saturate(0.8) contrast(0.78) brightness(1.16) hue-rotate(-4deg); }
+    .filter-bw{ filter: grayscale(1) contrast(1.32) brightness(0.94); }
+    .filter-polaroid{ filter: saturate(0.85) contrast(0.92) brightness(1.06) sepia(0.08); }
+    .shot.vintage-glow::after{
+      content:""; position:absolute; inset:0; pointer-events:none;
+      background:radial-gradient(circle at 72% 18%, rgba(255,221,163,0.42), transparent 55%);
+      mix-blend-mode:screen;
+    }
+
+    @media (max-width:640px){
+      .qr-card{grid-column:span 1;}
+    }
   </style>
 </head>
 <body>
@@ -93,7 +155,7 @@
   <div class="wrap" id="loginView">
     <div class="login-card">
       <h1>Revelado</h1>
-      <p>Inicia sesión para ver tu álbum</p>
+      <p>Inicia sesión para ver tu panel</p>
       <form id="loginForm">
         <input type="email" id="loginEmail" placeholder="Correo" autocomplete="username" required>
         <input type="password" id="loginPassword" placeholder="Contraseña" autocomplete="current-password" required>
@@ -103,53 +165,97 @@
     </div>
   </div>
 
-  <div class="wrap" id="albumView" hidden>
-    <header>
-      <h1>Álbum en vivo</h1>
-      <div class="header-right">
-        <div class="count" id="count">cargando…</div>
-        <button class="logout-btn" id="logoutBtn" type="button">Salir</button>
+  <div class="wrap" id="pendingView" hidden>
+    <div class="pending-card">
+      <h1>Casi listo, <span id="pendingEventName"></span></h1>
+      <p>Tu cuenta ya está creada. En cuanto se confirme tu pago, tu álbum y tu código QR se activan solos.</p>
+      <div class="pending-details">
+        <span>📅 <span id="pendingDate">—</span></span>
+        <span>📍 <span id="pendingLocation">—</span></span>
+        <span id="pendingPackage">—</span>
       </div>
-    </header>
-    <div class="format-badge" id="formatBadge" hidden></div>
+      <button class="btn-primary" id="payNowBtn" type="button">Pagar ahora</button>
+      <div class="pending-err" id="pendingErr"></div>
+      <div><button class="logout-btn" id="pendingLogoutBtn" type="button">Salir</button></div>
+    </div>
+  </div>
+
+  <div class="wrap" id="albumView" hidden>
+    <div class="dash-header">
+      <div>
+        <div class="eyebrow">Tu evento</div>
+        <h1 id="eventTitle">—</h1>
+        <div class="event-meta">
+          <span>📅 <span id="eventDateText">—</span></span>
+          <span>📍 <span id="eventLocationText">—</span></span>
+        </div>
+      </div>
+      <button class="logout-btn" id="logoutBtn" type="button">Salir</button>
+    </div>
+
+    <div class="dash-row">
+      <div class="stat-card">
+        <div class="stat-value"><span class="live-dot"></span><span id="count">0</span></div>
+        <div class="stat-label">fotos en el álbum</div>
+      </div>
+      <div class="stat-card format-card">
+        <div class="format-value" id="formatValue">—</div>
+        <div class="stat-label">formato del evento</div>
+      </div>
+      <div class="qr-card">
+        <div class="qr-box" id="qrBox"></div>
+        <div class="qr-info">
+          <h2>Código QR de tu evento</h2>
+          <div class="qr-link" id="qrLink"></div>
+          <div class="qr-actions">
+            <button id="copyLinkBtn" type="button">Copiar link</button>
+            <a id="downloadQrBtn" download="qr-revelado.svg">Descargar</a>
+            <span class="qr-copied" id="qrCopiedMsg" hidden>¡Copiado!</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="content"></div>
   </div>
 
   <script>
     const SUPABASE_URL = 'https://qhwxtgzqnztshmudabho.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFod3h0Z3pxbnp0c2htdWRhYmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTI5NzQsImV4cCI6MjEwMzM2ODk3NH0.ufpYauUWbbbJrAPOTY3zA6vQ9DfsYBEFXVsZrtPV2YU';
-    const EVENT_NAME = 'Mi evento';
-
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    const FILTER_LABELS = { vintage: 'Película vintage', bw: 'Blanco y negro', polaroid: 'Polaroid suave' };
+    const PACKAGE_LABELS = { sencillo: 'Sencillo (1 formato)', doble: 'Doble (2 formatos)', completo: 'Completo (3 formatos)' };
+
     const loginView = document.getElementById('loginView');
+    const pendingView = document.getElementById('pendingView');
     const albumView = document.getElementById('albumView');
     const loginForm = document.getElementById('loginForm');
     const loginErr = document.getElementById('loginErr');
     const logoutBtn = document.getElementById('logoutBtn');
+    const pendingLogoutBtn = document.getElementById('pendingLogoutBtn');
+    const payNowBtn = document.getElementById('payNowBtn');
+    const pendingErr = document.getElementById('pendingErr');
 
     const countEl = document.getElementById('count');
     const contentEl = document.getElementById('content');
-    const badgeEl = document.getElementById('formatBadge');
-
-    const FILTER_LABELS = {
-      vintage: 'Formato: película vintage',
-      bw: 'Formato: blanco y negro',
-      polaroid: 'Formato: polaroid suave'
-    };
+    const formatValueEl = document.getElementById('formatValue');
 
     function esc(s){
       return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
-
     function fmtTime(iso){
-      try {
-        return new Date(iso).toLocaleString('es-MX', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
-      } catch (e) { return ''; }
+      try { return new Date(iso).toLocaleString('es-MX', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }); }
+      catch (e) { return ''; }
+    }
+    function fmtDate(dateStr){
+      if (!dateStr) return 'Por definir';
+      try { return new Date(dateStr + 'T00:00:00').toLocaleDateString('es-MX', { day:'numeric', month:'long', year:'numeric' }); }
+      catch (e) { return dateStr; }
     }
 
     function render(photos, filterKey) {
-      countEl.innerHTML = '<strong>' + photos.length + '</strong> foto' + (photos.length === 1 ? '' : 's');
+      countEl.textContent = photos.length;
       if (photos.length === 0) {
         contentEl.innerHTML = '<div class="empty">Aún no hay fotos. En cuanto alguien use la cámara, van a aparecer aquí solas.</div>';
         return;
@@ -162,40 +268,106 @@
       ).join('') + '</div>';
     }
 
-    async function load() {
-      const [eventRes, photosRes] = await Promise.all([
-        db.from('events').select('filter').eq('name', EVENT_NAME).single(),
-        db.from('photos').select('*').eq('event_name', EVENT_NAME).order('created_at', { ascending: false })
-      ]);
-
-      if (photosRes.error) {
-        contentEl.innerHTML = '<div class="err">No se pudo cargar el álbum: ' + esc(photosRes.error.message) + '</div>';
-        countEl.textContent = '';
-        return;
-      }
-
-      const filterKey = (!eventRes.error && eventRes.data && eventRes.data.filter) ? eventRes.data.filter : 'vintage';
-      badgeEl.textContent = FILTER_LABELS[filterKey] || FILTER_LABELS.vintage;
-      badgeEl.hidden = false;
-
-      render(photosRes.data, filterKey);
-    }
-
-    // --- Puerta de acceso: nadie ve el álbum sin haber iniciado sesión ---
+    let currentEvent = null;
     let pollTimer = null;
 
-    function showAlbum() {
+    async function loadPhotos() {
+      const { data, error } = await db.from('photos').select('*').eq('event_id', currentEvent.id).order('created_at', { ascending: false });
+      if (error) {
+        contentEl.innerHTML = '<div class="err">No se pudo cargar el álbum: ' + esc(error.message) + '</div>';
+        countEl.textContent = '0';
+        return;
+      }
+      render(data, currentEvent.filter || 'vintage');
+    }
+
+    function setupQr(slug) {
+      const qrBox = document.getElementById('qrBox');
+      const qrLinkEl = document.getElementById('qrLink');
+      const downloadQrBtn = document.getElementById('downloadQrBtn');
+
+      const cameraUrl = window.location.origin + '/camara/?e=' + encodeURIComponent(slug);
+      qrLinkEl.textContent = cameraUrl;
+
+      const qr = qrcode(0, 'M');
+      qr.addData(cameraUrl);
+      qr.make();
+      const svg = qr.createSvgTag({ cellSize: 5, margin: 2, scalable: true });
+      qrBox.innerHTML = svg;
+      downloadQrBtn.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+      return cameraUrl;
+    }
+
+    document.getElementById('copyLinkBtn').addEventListener('click', async () => {
+      const cameraUrl = document.getElementById('qrLink').textContent;
+      const msgEl = document.getElementById('qrCopiedMsg');
+      try { await navigator.clipboard.writeText(cameraUrl); } catch (e) { /* el link ya está visible para copiar a mano */ }
+      msgEl.hidden = false;
+      setTimeout(() => { msgEl.hidden = true; }, 2000);
+    });
+
+    function showAlbumDashboard(eventRow) {
+      currentEvent = eventRow;
+      document.getElementById('eventTitle').textContent = eventRow.name;
+      document.getElementById('eventDateText').textContent = fmtDate(eventRow.event_date);
+      document.getElementById('eventLocationText').textContent = eventRow.location || 'Por definir';
+      formatValueEl.textContent = FILTER_LABELS[eventRow.filter] || FILTER_LABELS.vintage;
+      setupQr(eventRow.slug);
+
       loginView.hidden = true;
+      pendingView.hidden = true;
       albumView.hidden = false;
-      load();
-      if (!pollTimer) pollTimer = setInterval(load, 6000);
+
+      loadPhotos();
+      if (!pollTimer) pollTimer = setInterval(loadPhotos, 6000);
+    }
+
+    function showPendingPayment(eventRow) {
+      currentEvent = eventRow;
+      document.getElementById('pendingEventName').textContent = eventRow.name;
+      document.getElementById('pendingDate').textContent = fmtDate(eventRow.event_date);
+      document.getElementById('pendingLocation').textContent = eventRow.location || 'Por definir';
+      document.getElementById('pendingPackage').textContent = '🎟️ ' + (PACKAGE_LABELS[eventRow.package] || eventRow.package);
+
+      loginView.hidden = true;
+      albumView.hidden = true;
+      pendingView.hidden = false;
     }
 
     function showLogin() {
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      currentEvent = null;
+      pendingView.hidden = true;
       albumView.hidden = true;
       loginView.hidden = false;
       loginForm.reset();
+    }
+
+    async function loadMyEventAndRender() {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session) { showLogin(); return; }
+
+      const { data: eventRow, error } = await db
+        .from('events')
+        .select('id, name, slug, event_date, location, package, status, filter')
+        .eq('owner_id', session.user.id)
+        .single();
+
+      if (error || !eventRow) {
+        loginView.hidden = true;
+        pendingView.hidden = true;
+        albumView.hidden = false;
+        contentEl.innerHTML = '<div class="err">No encontramos ningún evento asociado a tu cuenta.</div>';
+        document.getElementById('eventTitle').textContent = 'Sin evento';
+        countEl.textContent = '0';
+        return;
+      }
+
+      if (eventRow.status === 'activo') {
+        showAlbumDashboard(eventRow);
+      } else {
+        showPendingPayment(eventRow);
+      }
     }
 
     loginForm.addEventListener('submit', async (e) => {
@@ -204,26 +376,42 @@
       const email = document.getElementById('loginEmail').value.trim();
       const password = document.getElementById('loginPassword').value;
       const { error } = await db.auth.signInWithPassword({ email, password });
-      if (error) {
-        loginErr.textContent = 'Correo o contraseña incorrectos.';
-        return;
-      }
-      showAlbum();
+      if (error) { loginErr.textContent = 'Correo o contraseña incorrectos.'; return; }
+      await loadMyEventAndRender();
     });
 
-    logoutBtn.addEventListener('click', async () => {
+    async function doLogout() {
       await db.auth.signOut();
       showLogin();
+    }
+    logoutBtn.addEventListener('click', doLogout);
+    pendingLogoutBtn.addEventListener('click', doLogout);
+
+    payNowBtn.addEventListener('click', async () => {
+      pendingErr.textContent = '';
+      payNowBtn.disabled = true;
+      payNowBtn.textContent = 'Conectando…';
+      try {
+        const res = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: currentEvent.id })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.url) {
+          pendingErr.textContent = data.error || 'El cobro automático todavía no está conectado.';
+          return;
+        }
+        window.location.href = data.url;
+      } catch (e) {
+        pendingErr.textContent = 'No se pudo conectar con el pago. Intenta de nuevo.';
+      } finally {
+        payNowBtn.disabled = false;
+        payNowBtn.textContent = 'Pagar ahora';
+      }
     });
 
-    (async function init() {
-      const { data } = await db.auth.getSession();
-      if (data.session) {
-        showAlbum();
-      } else {
-        showLogin();
-      }
-    })();
+    loadMyEventAndRender();
   </script>
 </body>
 </html>
