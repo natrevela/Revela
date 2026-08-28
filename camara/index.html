@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Revelado</title>
 
-  <!-- Esta línea trae la librería de Supabase, lista para usar como "supabase.createClient(...)" -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
@@ -23,9 +22,10 @@
     h1{font-size:2rem; margin:0 0 6px;}
     p{color:var(--paper-dim); margin:0 0 28px; max-width:34ch;}
 
+    .state-msg{color:var(--paper-dim); font-size:14px; max-width:30ch; line-height:1.6;}
+    .state-msg.error{color:#d9694f;}
+
     .frame-card{margin-bottom:26px;}
-    /* Cuando el formato es "polaroid", esta tarjeta blanca envuelve la foto,
-       con más espacio abajo que a los lados -- así se ve como una polaroid real. */
     .frame-card.polaroid-card{
       background:#ffffff; padding:14px 14px 46px; border-radius:4px;
       box-shadow:0 14px 30px -16px rgba(0,0,0,0.55);
@@ -39,14 +39,10 @@
     .frame img{width:100%; height:100%; object-fit:cover; display:block;}
     .frame .placeholder{color:var(--paper-faint); font-size:13px; padding:16px;}
 
-    /* --- Los tres formatos. Cuál se usa lo decide la tabla "events", no el navegador. --- */
-    /* vintage: foto vieja, desvanecida por el sol -- poco contraste, poca saturación, luces quemadas */
     .filter-vintage{ filter: sepia(0.18) saturate(0.8) contrast(0.78) brightness(1.16) hue-rotate(-4deg); }
-    /* blanco y negro: mucho contraste real, sombras profundas, no solo "sin color" */
     .filter-bw{ filter: grayscale(1) contrast(1.32) brightness(0.94); }
     .filter-polaroid{ filter: saturate(0.85) contrast(0.92) brightness(1.06) sepia(0.08); }
 
-    /* el brillo cálido de luz que trae el formato vintage, encima del filtro de color */
     .frame.vintage-glow::after{
       content:""; position:absolute; inset:0; pointer-events:none;
       background:radial-gradient(circle at 72% 18%, rgba(255,221,163,0.42), transparent 55%);
@@ -70,29 +66,36 @@
 </head>
 <body>
 
-  <h1>Revelado 📸</h1>
-  <p>Toca el obturador y tu foto entra directo al álbum.</p>
-
-  <div class="frame-card" id="frameCard">
-    <div class="frame" id="frame"><div class="placeholder">Aquí aparecerá tu foto</div></div>
+  <div id="stateScreen">
+    <h1>Revelado 📸</h1>
+    <p class="state-msg" id="stateMsg">Cargando tu evento…</p>
   </div>
 
-  <button class="shutter-btn" id="shutterBtn" aria-label="Tomar foto">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#150f0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path><circle cx="12" cy="13" r="3.4"></circle></svg>
-  </button>
-  <input type="file" id="cameraInput" accept="image/*" capture="environment">
+  <div id="cameraUI" hidden>
+    <h1>Revelado 📸</h1>
+    <p>Toca el obturador y tu foto entra directo al álbum.</p>
 
-  <div class="status" id="status"></div>
+    <div class="frame-card" id="frameCard">
+      <div class="frame" id="frame"><div class="placeholder">Aquí aparecerá tu foto</div></div>
+    </div>
+
+    <button class="shutter-btn" id="shutterBtn" aria-label="Tomar foto">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#150f0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path><circle cx="12" cy="13" r="3.4"></circle></svg>
+    </button>
+    <input type="file" id="cameraInput" accept="image/*" capture="environment">
+
+    <div class="status" id="status"></div>
+  </div>
 
   <script>
-    // --- 1) Conexión con Supabase -------------------------------------
     const SUPABASE_URL = 'https://qhwxtgzqnztshmudabho.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFod3h0Z3pxbnp0c2htdWRhYmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTI5NzQsImV4cCI6MjEwMzM2ODk3NH0.ufpYauUWbbbJrAPOTY3zA6vQ9DfsYBEFXVsZrtPV2YU';
-    const EVENT_NAME = 'Mi evento';
 
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // --- 2) Elementos de la página --------------------------------------
+    const stateScreen = document.getElementById('stateScreen');
+    const stateMsg = document.getElementById('stateMsg');
+    const cameraUI = document.getElementById('cameraUI');
     const shutterBtn = document.getElementById('shutterBtn');
     const cameraInput = document.getElementById('cameraInput');
     const frame = document.getElementById('frame');
@@ -103,21 +106,42 @@
       statusEl.className = 'status' + (kind ? ' ' + kind : '');
     }
 
-    // --- 3) El formato del evento se lee una vez, de la tabla "events" --
-    // Nadie lo elige desde aquí: viene fijo según el paquete que se compró.
-    let filterClass = 'filter-vintage'; // mientras carga, o si algo falla
-    (async function loadEventFilter() {
-      try {
-        const { data, error } = await db.from('events').select('filter').eq('name', EVENT_NAME).single();
-        if (!error && data && data.filter) filterClass = 'filter-' + data.filter;
-      } catch (e) { /* se queda con el formato por defecto */ }
-      // si el formato es polaroid, la tarjeta blanca con marco se activa aquí
-      document.getElementById('frameCard').classList.toggle('polaroid-card', filterClass === 'filter-polaroid');
-      // si el formato es vintage, el brillito cálido se activa aquí
-      document.getElementById('frame').classList.toggle('vintage-glow', filterClass === 'filter-vintage');
-    })();
+    function showError(msg) {
+      stateMsg.textContent = msg;
+      stateMsg.classList.add('error');
+      stateScreen.hidden = false;
+      cameraUI.hidden = true;
+    }
 
-    // --- 4) Achicar la foto antes de subirla ---------------------------
+    // --- Identificar el evento a partir del link (?e=slug-del-evento) ---
+    let currentEvent = null;
+
+    async function loadEvent() {
+      const slug = new URLSearchParams(window.location.search).get('e');
+      if (!slug) {
+        showError('Este link no tiene un evento válido. Escanea el código QR de tu evento.');
+        return;
+      }
+
+      const { data, error } = await db.from('events').select('id, filter, status').eq('slug', slug).single();
+      if (error || !data) {
+        showError('No encontramos ese evento. Pide el código QR correcto a tu organizador.');
+        return;
+      }
+      if (data.status !== 'activo') {
+        showError('Este evento todavía no está activo.');
+        return;
+      }
+
+      currentEvent = { id: data.id, filterClass: 'filter-' + (data.filter || 'vintage') };
+
+      document.getElementById('frameCard').classList.toggle('polaroid-card', currentEvent.filterClass === 'filter-polaroid');
+      document.getElementById('frame').classList.toggle('vintage-glow', currentEvent.filterClass === 'filter-vintage');
+
+      stateScreen.hidden = true;
+      cameraUI.hidden = false;
+    }
+
     function compress(file) {
       return new Promise((resolve, reject) => {
         const maxDim = 1200;
@@ -144,12 +168,11 @@
       });
     }
 
-    // --- 5) El flujo completo: foto -> Supabase Storage -> tabla photos
     shutterBtn.addEventListener('click', () => cameraInput.click());
 
     cameraInput.addEventListener('change', async () => {
       const file = cameraInput.files[0];
-      if (!file) return;
+      if (!file || !currentEvent) return;
 
       shutterBtn.disabled = true;
       setStatus('Revelando…');
@@ -157,21 +180,20 @@
       try {
         const blob = await compress(file);
 
-        // vista previa local, YA con el formato del evento aplicado
         frame.innerHTML = '';
         const img = document.createElement('img');
-        img.className = filterClass;
+        img.className = currentEvent.filterClass;
         img.src = URL.createObjectURL(blob);
         frame.appendChild(img);
 
-        const path = EVENT_NAME.replace(/\s+/g, '-').toLowerCase() + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
+        const path = currentEvent.id + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
 
         const { error: uploadError } = await db.storage.from('fotos').upload(path, blob, { contentType: 'image/jpeg' });
         if (uploadError) throw uploadError;
 
         const { data: pub } = db.storage.from('fotos').getPublicUrl(path);
 
-        const { error: insertError } = await db.from('photos').insert({ event_name: EVENT_NAME, photo_url: pub.publicUrl });
+        const { error: insertError } = await db.from('photos').insert({ event_id: currentEvent.id, photo_url: pub.publicUrl });
         if (insertError) throw insertError;
 
         setStatus('¡Lista! Ya está en el álbum.', 'ok');
@@ -183,6 +205,8 @@
         cameraInput.value = '';
       }
     });
+
+    loadEvent();
   </script>
 </body>
 </html>
