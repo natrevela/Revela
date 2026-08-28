@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Revelado — Crear cuenta</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root{
+      --darkroom:#150f0a; --darkroom-2:#221a12; --darkroom-3:#2c2117;
+      --paper:#f3e9d7; --paper-dim:#c2b498; --paper-faint:#8a7d65;
+      --amber:#e8823c; --amber-bright:#ffa858; --fixer:#4fa69c;
+      --line:rgba(243,233,215,0.14); --line-strong:rgba(243,233,215,0.26);
+      --shadow:0 14px 30px -16px rgba(0,0,0,0.7);
+    }
+    *,*::before,*::after{box-sizing:border-box;}
+    body{
+      margin:0; min-height:100vh; background:var(--darkroom); color:var(--paper);
+      font-family:system-ui, sans-serif; padding:24px 20px 60px;
+    }
+    .wrap{max-width:480px; margin:0 auto;}
+    nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:28px;}
+    .logo{font-size:1.1rem; font-weight:700;}
+    .back-link{font-size:13px; color:var(--paper-dim); text-decoration:none;}
+    .back-link:hover{color:var(--paper);}
+
+    .card{
+      background:var(--darkroom-2); border:1px solid var(--line); border-radius:16px;
+      padding:28px 24px; box-shadow:var(--shadow);
+    }
+    .card h1{font-size:1.4rem; margin:0 0 6px;}
+    .card > p{color:var(--paper-dim); font-size:13.5px; margin:0 0 24px;}
+
+    label{display:block; font-size:12.5px; color:var(--paper-dim); margin-bottom:5px; font-weight:600;}
+    .field{margin-bottom:16px;}
+    input[type="email"], input[type="password"], input[type="text"], input[type="date"]{
+      width:100%; font-family:inherit; font-size:14px; padding:11px 12px; border-radius:8px;
+      border:1px solid var(--line-strong); background:var(--darkroom); color:var(--paper);
+    }
+    input:focus{outline:2px solid var(--fixer); outline-offset:1px;}
+    input::-webkit-calendar-picker-indicator{filter:invert(0.8);}
+
+    .package-picker{display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;}
+    .package-chip{
+      position:relative; border:1px solid var(--line-strong); border-radius:10px; padding:10px 6px;
+      text-align:center; cursor:pointer; transition:border-color 0.15s, background 0.15s;
+    }
+    .package-chip input{position:absolute; opacity:0; pointer-events:none;}
+    .package-chip span{display:block; font-size:12.5px; font-weight:600;}
+    .package-chip small{display:block; font-size:10.5px; color:var(--paper-dim); font-weight:400; margin-top:2px;}
+    .package-chip.selected{border-color:var(--amber); background:rgba(232,130,60,0.1);}
+
+    button[type="submit"]{
+      width:100%; margin-top:6px; font-family:inherit; font-size:15px; font-weight:600; padding:13px;
+      border-radius:8px; border:none; background:var(--amber); color:var(--darkroom); cursor:pointer;
+    }
+    button[type="submit"]:hover{background:var(--amber-bright);}
+    button[type="submit"]:disabled{opacity:0.6; cursor:default;}
+
+    .form-err{color:#d9694f; font-size:12.5px; margin-top:14px; min-height:16px;}
+
+    /* --- Confirmación --- */
+    .confirm-card{text-align:center;}
+    .confirm-card .check{
+      width:48px; height:48px; border-radius:50%; background:rgba(79,166,156,0.14); color:var(--fixer);
+      display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:22px;
+    }
+    .confirm-card h1{margin-bottom:10px;}
+    .confirm-card p{color:var(--paper-dim); font-size:13.5px; line-height:1.6; margin:0 0 22px;}
+    .confirm-card p strong{color:var(--paper);}
+    .btn-whatsapp{
+      display:inline-flex; align-items:center; gap:8px; font-family:inherit; font-size:15px; font-weight:600;
+      text-decoration:none; border-radius:999px; padding:13px 26px; background:var(--amber); color:var(--darkroom);
+    }
+    .btn-whatsapp:hover{background:var(--amber-bright);}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <div class="logo">Revelado 📸</div>
+      <a class="back-link" href="/">← Volver al inicio</a>
+    </nav>
+
+    <div class="card" id="signupCard">
+      <h1>Crea tu cuenta</h1>
+      <p>Con esto reservamos tu evento. En el siguiente paso completas el pago para activarlo.</p>
+
+      <form id="signupForm">
+        <div class="field">
+          <label for="email">Correo (será tu usuario)</label>
+          <input type="email" id="email" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="password">Contraseña</label>
+          <input type="password" id="password" autocomplete="new-password" minlength="6" required>
+        </div>
+        <div class="field">
+          <label for="eventName">Nombre del evento</label>
+          <input type="text" id="eventName" placeholder="Ej. Boda de Ana y Luis" required>
+        </div>
+        <div class="field">
+          <label for="eventDate">Fecha del evento</label>
+          <input type="date" id="eventDate" required>
+        </div>
+        <div class="field">
+          <label for="eventLocation">Lugar del evento</label>
+          <input type="text" id="eventLocation" placeholder="Ej. Salón Jardín, CDMX" required>
+        </div>
+        <div class="field">
+          <label>Paquete</label>
+          <div class="package-picker" id="packagePicker">
+            <label class="package-chip" data-value="sencillo">
+              <input type="radio" name="package" value="sencillo">
+              <span>Sencillo</span>
+              <small>1 formato</small>
+            </label>
+            <label class="package-chip" data-value="doble">
+              <input type="radio" name="package" value="doble">
+              <span>Doble</span>
+              <small>2 formatos</small>
+            </label>
+            <label class="package-chip" data-value="completo">
+              <input type="radio" name="package" value="completo">
+              <span>Completo</span>
+              <small>3 formatos</small>
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" id="submitBtn">Crear cuenta</button>
+        <div class="form-err" id="formErr"></div>
+      </form>
+    </div>
+
+    <div class="card confirm-card" id="confirmCard" hidden>
+      <div class="check">✓</div>
+      <h1 id="confirmTitle">¡Cuenta creada!</h1>
+      <p id="confirmText"></p>
+      <a class="btn-whatsapp" id="confirmAction" href="/organizador/">Ir a mi panel</a>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://qhwxtgzqnztshmudabho.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFod3h0Z3pxbnp0c2htdWRhYmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTI5NzQsImV4cCI6MjEwMzM2ODk3NH0.ufpYauUWbbbJrAPOTY3zA6vQ9DfsYBEFXVsZrtPV2YU';
+
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const PACKAGE_LABELS = {
+      sencillo: 'Paquete Sencillo (1 formato)',
+      doble: 'Paquete Doble (2 formatos)',
+      completo: 'Paquete Completo (los 3 formatos)'
+    };
+    const VALID_PACKAGES = Object.keys(PACKAGE_LABELS);
+
+    const signupCard = document.getElementById('signupCard');
+    const confirmCard = document.getElementById('confirmCard');
+    const signupForm = document.getElementById('signupForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const formErr = document.getElementById('formErr');
+    const packagePicker = document.getElementById('packagePicker');
+
+    // --- Quita acentos y símbolos para que el link del QR quede limpio ---
+    function slugify(text) {
+      return text
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 40) || 'evento';
+    }
+
+    function randomSuffix(len) {
+      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+      let s = '';
+      for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+      return s;
+    }
+
+    // --- Preselecciona el paquete si vino desde la página de inicio (?paquete=doble) ---
+    function selectPackage(value) {
+      packagePicker.querySelectorAll('.package-chip').forEach(chip => {
+        const isMatch = chip.dataset.value === value;
+        chip.classList.toggle('selected', isMatch);
+        chip.querySelector('input').checked = isMatch;
+      });
+    }
+
+    packagePicker.addEventListener('click', (e) => {
+      const chip = e.target.closest('.package-chip');
+      if (chip) selectPackage(chip.dataset.value);
+    });
+
+    (function initPackageFromUrl() {
+      const requested = new URLSearchParams(window.location.search).get('paquete');
+      const initial = VALID_PACKAGES.includes(requested) ? requested : 'sencillo';
+      selectPackage(initial);
+    })();
+
+    // Se muestra solo si el pago automático todavía no está conectado (falta la cuenta de Stripe) --
+    // la cuenta y el evento ya quedaron creados de todas formas.
+    function showPendingStripe(eventName) {
+      signupCard.hidden = true;
+      confirmCard.hidden = false;
+      document.getElementById('confirmTitle').textContent = '¡Cuenta creada!';
+      document.getElementById('confirmText').textContent =
+        'Tu cuenta para "' + eventName + '" ya está lista. El cobro en línea todavía no está activado — ' +
+        'en cuanto lo esté, inicia sesión en tu panel para completar el pago y activar tu álbum.';
+    }
+
+    signupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      formErr.textContent = '';
+
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const eventName = document.getElementById('eventName').value.trim();
+      const eventDate = document.getElementById('eventDate').value;
+      const eventLocation = document.getElementById('eventLocation').value.trim();
+      const pkgInput = packagePicker.querySelector('input:checked');
+      const pkg = pkgInput ? pkgInput.value : 'sencillo';
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Creando…';
+
+      try {
+        const { data: signUpData, error: signUpError } = await db.auth.signUp({ email, password });
+        if (signUpError) {
+          throw new Error(
+            signUpError.message === 'User already registered'
+              ? 'Ese correo ya tiene una cuenta. Si es tuya, inicia sesión desde "Ya tengo un evento".'
+              : signUpError.message
+          );
+        }
+
+        if (!signUpData.session) {
+          formErr.textContent = 'Revisa tu correo para confirmar tu cuenta y vuelve a completar este formulario.';
+          return;
+        }
+
+        const slug = slugify(eventName) + '-' + randomSuffix(4);
+
+        const { data: insertedEvent, error: insertError } = await db.from('events').insert({
+          owner_id: signUpData.user.id,
+          name: eventName,
+          slug: slug,
+          event_date: eventDate,
+          location: eventLocation,
+          package: pkg,
+          status: 'pendiente_pago'
+        }).select('id').single();
+        if (insertError) throw new Error(insertError.message);
+
+        // La cuenta y el evento ya existen -- ahora se intenta el pago automático.
+        submitBtn.textContent = 'Conectando con el pago…';
+        const checkoutRes = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: insertedEvent.id })
+        });
+        const checkoutData = await checkoutRes.json().catch(() => ({}));
+
+        if (!checkoutRes.ok || !checkoutData.url) {
+          // La cuenta ya quedó creada -- solo el cobro automático no está listo todavía.
+          showPendingStripe(eventName);
+          return;
+        }
+
+        window.location.href = checkoutData.url;
+      } catch (err) {
+        formErr.textContent = 'No se pudo crear tu cuenta: ' + (err.message || 'intenta de nuevo');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Crear cuenta';
+      }
+    });
+
+    // Si Stripe te regresa aquí porque cancelaste el pago, avisa y deja el formulario listo para reintentar.
+    (function checkCancelled() {
+      if (new URLSearchParams(window.location.search).get('cancelado') === '1') {
+        formErr.textContent = 'El pago se canceló. Puedes intentarlo de nuevo cuando quieras.';
+      }
+    })();
+  </script>
+</body>
+</html>
