@@ -50,3 +50,353 @@ Preview (first 2KB):
     }
 ...
 </persisted-output>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Revelado — Panel</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@2.0.4/dist/qrcode.js"></script>
+
+  <style>
+    :root{
+      --darkroom:#150f0a; --darkroom-2:#221a12; --darkroom-3:#2c2117;
+      --paper:#f3e9d7; --paper-dim:#c2b498; --paper-faint:#8a7d65;
+      --amber:#e8823c; --amber-bright:#ffa858; --fixer:#4fa69c;
+      --line:rgba(243,233,215,0.14); --line-strong:rgba(243,233,215,0.26);
+      --shadow:0 14px 30px -16px rgba(0,0,0,0.7);
+    }
+    *,*::before,*::after{box-sizing:border-box;}
+    body{
+      margin:0; min-height:100vh; background:var(--darkroom); color:var(--paper);
+      font-family:system-ui, sans-serif; padding:28px 20px 60px;
+    }
+    .wrap{max-width:1000px; margin:0 auto;}
+    a{color:inherit;}
+
+    button{font-family:inherit; cursor:pointer;}
+    .logout-btn{
+      font-size:12px; padding:6px 12px; border-radius:999px;
+      border:1px solid var(--line-strong); background:transparent; color:var(--paper-dim);
+      text-decoration:none; display:inline-block;
+    }
+    .logout-btn:hover{color:var(--paper); border-color:var(--paper-dim);}
+    .btn-primary{
+      font-size:15px; font-weight:600; padding:13px 26px; border-radius:999px; border:none;
+      background:var(--amber); color:var(--darkroom);
+    }
+    .btn-primary:hover{background:var(--amber-bright);}
+    .btn-primary:disabled{opacity:0.6; cursor:default;}
+
+    /* --- Login --- */
+    #loginView.wrap{min-height:calc(100vh - 56px); display:flex; align-items:center; justify-content:center;}
+    .login-card{
+      background:var(--darkroom-2); border:1px solid var(--line-strong); border-radius:14px;
+      padding:32px 28px; max-width:340px; width:100%; text-align:center; box-shadow:var(--shadow);
+    }
+    .login-card h1{font-size:1.5rem; margin:0 0 6px;}
+    .login-card p{color:var(--paper-dim); font-size:13.5px; margin:0 0 20px;}
+    .login-card form{display:flex; flex-direction:column; gap:10px;}
+    .login-card input{
+      font-family:inherit; font-size:14px; padding:11px 12px; border-radius:8px;
+      border:1px solid var(--line-strong); background:var(--darkroom); color:var(--paper);
+    }
+    .login-card input:focus{outline:2px solid var(--fixer); outline-offset:1px;}
+    .login-card button[type="submit"]{
+      margin-top:4px; font-family:inherit; font-size:14px; font-weight:600; padding:11px 12px;
+      border-radius:8px; border:none; background:var(--amber); color:var(--darkroom);
+    }
+    .login-err{color:#d9694f; font-size:12.5px; margin-top:12px; min-height:16px;}
+    .login-ok{color:var(--fixer); font-size:12.5px; margin-top:12px; line-height:1.5;}
+    .link-btn{
+      display:inline-block; margin-top:16px; background:none; border:none; color:var(--paper-dim);
+      font-size:12.5px; text-decoration:underline; cursor:pointer; font-family:inherit; padding:0;
+    }
+    .link-btn:hover{color:var(--paper);}
+
+    /* --- Pantalla de pago pendiente --- */
+    #pendingView.wrap{min-height:calc(100vh - 56px); display:flex; align-items:center; justify-content:center;}
+    .pending-card{
+      background:var(--darkroom-2); border:1px solid var(--line-strong); border-radius:16px;
+      padding:34px 28px; max-width:420px; width:100%; text-align:center; box-shadow:var(--shadow);
+    }
+    .pending-card h1{font-size:1.4rem; margin:0 0 10px;}
+    .pending-card h1 span{color:var(--amber-bright);}
+    .pending-card > p{color:var(--paper-dim); font-size:13.5px; line-height:1.6; margin:0 0 20px;}
+    .pending-details{
+      display:flex; flex-direction:column; gap:6px; align-items:center; font-size:13px; color:var(--paper-dim);
+      background:var(--darkroom); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:22px;
+    }
+    .pending-err{color:#d9694f; font-size:12.5px; margin-top:14px; min-height:16px;}
+    .pending-card .logout-btn{margin-top:18px;}
+
+    /* --- Dashboard --- */
+    .dash-header{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;
+      margin-bottom:20px;
+    }
+    .header-actions{display:flex; gap:8px; flex-wrap:wrap; align-items:flex-start;}
+    .eyebrow{font-size:11.5px; letter-spacing:0.05em; text-transform:uppercase; color:var(--amber-bright); font-weight:700; margin-bottom:4px;}
+    .dash-header h1{font-size:1.7rem; margin:0 0 8px;}
+    .event-meta{display:flex; gap:16px; flex-wrap:wrap; color:var(--paper-dim); font-size:13px;}
+
+    .dash-row{display:grid; gap:14px; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); margin-bottom:24px;}
+    .stat-card{
+      background:var(--darkroom-2); border:1px solid var(--line); border-radius:14px;
+      padding:18px 20px; display:flex; flex-direction:column; justify-content:center;
+    }
+    .stat-value{font-size:1.7rem; font-weight:700; display:flex; align-items:center;}
+    .stat-label{color:var(--paper-dim); font-size:12px; margin-top:2px;}
+    .live-dot{
+      display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--fixer);
+      margin-right:8px; animation:pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse{
+      0%,100%{ box-shadow:0 0 0 0 rgba(79,166,156,0.5); }
+      50%{ box-shadow:0 0 0 6px rgba(79,166,156,0); }
+    }
+    .format-card .format-value{font-size:1.05rem; font-weight:700; color:var(--fixer);}
+
+    .qr-card{
+      background:var(--darkroom-2); border:1px solid var(--line); border-radius:14px;
+      padding:16px; display:flex; gap:14px; align-items:center; grid-column:span 2;
+    }
+    .qr-box{
+      background:#ffffff; padding:8px; border-radius:8px; width:84px; height:84px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .qr-box svg{width:100%; height:100%; display:block;}
+    .qr-info{flex:1; min-width:0;}
+    .qr-info h2{font-size:0.85rem; margin:0 0 6px; color:var(--paper-dim); font-weight:600;}
+    .qr-link{
+      font-family:ui-monospace, monospace; font-size:11px; color:var(--paper-dim);
+      background:var(--darkroom); border:1px solid var(--line); border-radius:6px; padding:6px 8px;
+      word-break:break-all; margin-bottom:8px;
+    }
+    .qr-actions{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+    .qr-actions button, .qr-actions a{
+      font-family:inherit; font-size:11.5px; font-weight:600; padding:6px 12px; border-radius:999px;
+      border:1px solid var(--line-strong); background:transparent; color:var(--paper); cursor:pointer; text-decoration:none;
+    }
+    .qr-actions button:hover, .qr-actions a:hover{border-color:var(--paper-dim);}
+    .qr-copied{color:var(--fixer); font-size:11px;}
+
+    .empty{border:1px dashed var(--line-strong); border-radius:12px; padding:34px 20px; text-align:center; color:var(--paper-faint); font-size:14px;}
+    .err{border:1px solid rgba(217,105,79,0.5); background:var(--darkroom-2); color:#f0b6a5; border-radius:10px; padding:12px 15px; font-size:13.5px; margin-bottom:18px;}
+
+    /* --- Pestañas: Fotos / Mensajes de voz --- */
+    .tab-switch{display:flex; gap:8px; margin-bottom:18px; border-bottom:1px solid var(--line); padding-bottom:14px;}
+    .tab-btn{
+      font-size:13px; font-weight:600; padding:9px 16px; border-radius:999px;
+      border:1px solid var(--line-strong); background:transparent; color:var(--paper-dim);
+    }
+    .tab-btn.active{background:var(--amber); border-color:var(--amber); color:var(--darkroom);}
+
+    /* --- Mensajes de voz --- */
+    .msg-list{display:flex; flex-direction:column; gap:12px;}
+    .msg-card{
+      background:var(--darkroom-2); border:1px solid var(--line); border-radius:12px;
+      padding:14px 16px; display:flex; flex-direction:column; gap:8px;
+    }
+    .msg-top{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+    .msg-name{font-size:14px; font-weight:700;}
+    .msg-name.anon{color:var(--paper-faint); font-weight:500; font-style:italic;}
+    .msg-ts{font-size:11.5px; color:var(--paper-faint); font-family:ui-monospace, monospace;}
+    .msg-card audio{width:100%;}
+
+    .grid{display:grid; gap:16px; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));}
+    .print{background:var(--paper); border-radius:3px; padding:8px 8px 22px; box-shadow:0 14px 30px -16px rgba(0,0,0,0.7); cursor:pointer; transition:transform 0.15s;}
+    .print:hover{transform:scale(1.03) rotate(0deg) !important;}
+    .print:nth-child(3n+1){transform:rotate(-1.6deg);}
+    .print:nth-child(3n+2){transform:rotate(1.2deg);}
+    .print:nth-child(3n){transform:rotate(-0.6deg);}
+    .print .ts{font-size:9px; color:var(--darkroom); opacity:0.55; margin-top:6px; text-align:center; font-family:ui-monospace, monospace;}
+    .print-caption{margin-top:6px; text-align:center;}
+    .print-caption .g-name{display:block; font-size:11px; font-weight:700; color:var(--darkroom);}
+    .print-caption .g-msg{display:block; font-size:10.5px; color:var(--darkroom); opacity:0.75; font-style:italic; line-height:1.35; margin-top:2px;}
+    .shot{position:relative; display:block; overflow:hidden; border-radius:2px;}
+    .print img{width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:2px; display:block;}
+    .print.polaroid-card{background:#ffffff; padding:14px 14px 46px;}
+
+    .filter-vintage{ filter: sepia(0.18) saturate(0.8) contrast(0.78) brightness(1.16) hue-rotate(-4deg); }
+    .filter-bw{ filter: grayscale(1) contrast(1.32) brightness(0.94); }
+    .filter-polaroid{ filter: saturate(0.85) contrast(0.92) brightness(1.06) sepia(0.08); }
+    .shot.vintage-glow::after{
+      content:""; position:absolute; inset:0; pointer-events:none;
+      background:radial-gradient(circle at 72% 18%, rgba(255,221,163,0.42), transparent 55%);
+      mix-blend-mode:screen;
+    }
+
+    @media (max-width:640px){
+      .qr-card{grid-column:span 1;}
+    }
+
+    /* --- Lightbox (foto ampliada) --- */
+    .lightbox{
+      position:fixed; inset:0; background:rgba(10,7,4,0.92); z-index:100;
+      display:flex; align-items:center; justify-content:center; padding:20px;
+    }
+    .lb-content{max-width:min(520px, 88vw); display:flex; flex-direction:column; align-items:center; text-align:center;}
+    .lb-frame-card{background:var(--paper); border-radius:4px; padding:14px 14px 30px; box-shadow:0 20px 50px -20px rgba(0,0,0,0.8); max-width:100%;}
+    .lb-frame-card.polaroid-card{padding:16px 16px 52px;}
+    .lb-shot{position:relative; display:block; overflow:hidden; border-radius:2px; max-height:60vh;}
+    #lbImg{max-width:100%; max-height:60vh; display:block; border-radius:2px; object-fit:contain; margin:0 auto;}
+    .lb-caption{margin-top:16px;}
+    .lb-caption .g-name{display:block; font-size:14px; font-weight:700; color:var(--paper);}
+    .lb-caption .g-msg{display:block; font-size:13px; color:var(--paper-dim); font-style:italic; margin-top:4px;}
+    .lb-ts{margin-top:8px; font-size:11.5px; color:var(--paper-faint); font-family:ui-monospace, monospace;}
+    .lb-close, .lb-nav{
+      border:1px solid var(--line-strong); background:var(--darkroom-2); color:var(--paper);
+      display:flex; align-items:center; justify-content:center; cursor:pointer;
+    }
+    .lb-close{
+      position:absolute; top:18px; right:18px; width:38px; height:38px; border-radius:50%; font-size:16px;
+    }
+    .lb-nav{
+      position:absolute; top:50%; transform:translateY(-50%); width:46px; height:46px; border-radius:50%; font-size:22px;
+    }
+    .lb-prev{left:16px;}
+    .lb-next{right:16px;}
+    .lb-nav:disabled{opacity:0.25; cursor:default;}
+    @media (max-width:640px){
+      .lb-nav{width:38px; height:38px; font-size:18px;}
+      .lb-prev{left:6px;} .lb-next{right:6px;}
+      .lb-close{top:10px; right:10px;}
+    }
+
+    /* Asegura que "hidden" siempre oculte, incluso en elementos que también
+       tienen su propio "display" (como flex) -- sin esto, el navegador
+       puede ignorar "hidden" y dejar el elemento visible por error. */
+    [hidden]{ display:none !important; }
+  </style>
+</head>
+<body>
+
+  <div class="wrap" id="loginView">
+    <div class="login-card" id="loginCard">
+      <h1>Revelado</h1>
+      <p>Inicia sesión para ver tu panel</p>
+      <form id="loginForm">
+        <input type="email" id="loginEmail" placeholder="Correo" autocomplete="username" required>
+        <input type="password" id="loginPassword" placeholder="Contraseña" autocomplete="current-password" required>
+        <button type="submit">Entrar</button>
+      </form>
+      <div class="login-err" id="loginErr"></div>
+      <button type="button" class="link-btn" id="forgotLinkBtn">¿Olvidaste tu contraseña?</button>
+    </div>
+
+    <div class="login-card" id="forgotCard" hidden>
+      <h1>Recuperar contraseña</h1>
+      <p>Escribe tu correo y te mandamos un link para crear una nueva contraseña.</p>
+      <form id="forgotForm">
+        <input type="email" id="forgotEmail" placeholder="Correo" autocomplete="username" required>
+        <button type="submit">Enviar link</button>
+      </form>
+      <div class="login-err" id="forgotErr"></div>
+      <div class="login-ok" id="forgotOk" hidden>Si ese correo tiene una cuenta, te llegó un link para restablecer tu contraseña. Revisa tu bandeja de entrada (y spam).</div>
+      <button type="button" class="link-btn" id="backToLoginBtn">← Volver a iniciar sesión</button>
+    </div>
+  </div>
+
+  <div class="wrap" id="pendingView" hidden>
+    <div class="pending-card">
+      <h1>Casi listo, <span id="pendingEventName"></span></h1>
+      <p>Tu cuenta ya está creada. En cuanto se confirme tu pago, tu álbum y tu código QR se activan solos.</p>
+      <div class="pending-details">
+        <span>📅 <span id="pendingDate">—</span></span>
+        <span>📍 <span id="pendingLocation">—</span></span>
+        <span id="pendingPackage">—</span>
+      </div>
+      <button class="btn-primary" id="payNowBtn" type="button">Pagar ahora</button>
+      <div class="pending-err" id="pendingErr"></div>
+      <div><button class="logout-btn" id="pendingLogoutBtn" type="button">Salir</button></div>
+    </div>
+  </div>
+
+  <div class="wrap" id="albumView" hidden>
+    <div class="dash-header">
+      <div>
+        <div class="eyebrow">Tu evento</div>
+        <h1 id="eventTitle">—</h1>
+        <div class="event-meta">
+          <span>📅 <span id="eventDateText">—</span></span>
+          <span>📍 <span id="eventLocationText">—</span></span>
+        </div>
+      </div>
+      <button class="logout-btn" id="logoutBtn" type="button">Salir</button>
+    </div>
+
+    <div class="dash-row">
+      <div class="stat-card">
+        <div class="stat-value"><span class="live-dot"></span><span id="count">0</span></div>
+        <div class="stat-label">fotos en el álbum</div>
+      </div>
+      <div class="stat-card format-card">
+        <div class="format-value" id="formatValue">—</div>
+        <div class="stat-label">formato del evento</div>
+      </div>
+      <div class="qr-card">
+        <div class="qr-box" id="qrBox"></div>
+        <div class="qr-info">
+          <h2>Código QR de tu evento</h2>
+          <div class="qr-link" id="qrLink"></div>
+          <div class="qr-actions">
+            <button id="copyLinkBtn" type="button">Copiar link</button>
+            <a id="downloadQrBtn" download="qr-revelado.svg">Descargar</a>
+            <span class="qr-copied" id="qrCopiedMsg" hidden>¡Copiado!</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-switch" id="tabSwitch">
+      <button type="button" class="tab-btn active" id="tabFotosBtn">📷 Fotos</button>
+      <button type="button" class="tab-btn" id="tabMensajesBtn">🎤 Mensajes de voz</button>
+    </div>
+
+    <div id="content"></div>
+    <div id="voiceContent" hidden></div>
+  </div>
+
+  <!-- Foto ampliada, con flechas para navegar -->
+  <div class="lightbox" id="lightbox" hidden>
+    <button class="lb-close" id="lbCloseBtn" type="button" aria-label="Cerrar">✕</button>
+    <button class="lb-nav lb-prev" id="lbPrevBtn" type="button" aria-label="Foto anterior">‹</button>
+    <div class="lb-content">
+      <div class="lb-frame-card" id="lbFrameCard">
+        <span class="lb-shot" id="lbShot"><img id="lbImg" alt="Foto del álbum"></span>
+      </div>
+      <div class="lb-caption" id="lbCaption"></div>
+      <div class="lb-ts" id="lbTs"></div>
+    </div>
+    <button class="lb-nav lb-next" id="lbNextBtn" type="button" aria-label="Foto siguiente">›</button>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://qhwxtgzqnztshmudabho.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFod3h0Z3pxbnp0c2htdWRhYmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTI5NzQsImV4cCI6MjEwMzM2ODk3NH0.ufpYauUWbbbJrAPOTY3zA6vQ9DfsYBEFXVsZrtPV2YU';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const FILTER_LABELS = { vintage: 'Película vintage', bw: 'Blanco y negro', polaroid: 'Polaroid suave' };
+    const PACKAGE_LABELS = { sencillo: 'Sencillo (1 formato)', doble: 'Doble (2 formatos)', completo: 'Completo (3 formatos)' };
+
+    const loginView = document.getElementById('loginView');
+    const pendingView = document.getElementById('pendingView');
+    const albumView = document.getElementById('albumView');
+    const loginCard = document.getElementById('loginCard');
+    const forgotCard = document.getElementById('forgotCard');
+    const loginForm = document.getElementById('loginForm');
+    const loginErr = document.getElementById('loginErr');
+    const forgotForm = document.getElementById('forgotForm');
+    const forgotErr = document.getElementById('forgotErr');
+    const forgotOk = document.getElementById('forgotOk');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const pendingLogoutBtn = document.getElementById('pendingLogoutBtn');
+    const payNowBtn = document.getElementById('payNowBtn');
+    const pendingErr = document.getElementById('pendingErr');
+
+    const countEl = document.getElementById('count');
+    const contentEl = document.getElementById('content');
+    const voiceContentEl = document.getElementById('voiceContent');
