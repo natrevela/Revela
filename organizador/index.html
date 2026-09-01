@@ -1,55 +1,3 @@
-<persisted-output>
-Output too large (31.1KB). Full output saved to: /root/.claude/projects/-home-claude/8aac3490-5c4e-5c9e-9361-00edf13c4085/tool-results/bgkf2wl0u.txt
-
-Preview (first 2KB):
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Revelado — Panel</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@2.0.4/dist/qrcode.js"></script>
-
-  <style>
-    :root{
-      --darkroom:#150f0a; --darkroom-2:#221a12; --darkroom-3:#2c2117;
-      --paper:#f3e9d7; --paper-dim:#c2b498; --paper-faint:#8a7d65;
-      --amber:#e8823c; --amber-bright:#ffa858; --fixer:#4fa69c;
-      --line:rgba(243,233,215,0.14); --line-strong:rgba(243,233,215,0.26);
-      --shadow:0 14px 30px -16px rgba(0,0,0,0.7);
-    }
-    *,*::before,*::after{box-sizing:border-box;}
-    body{
-      margin:0; min-height:100vh; background:var(--darkroom); color:var(--paper);
-      font-family:system-ui, sans-serif; padding:28px 20px 60px;
-    }
-    .wrap{max-width:1000px; margin:0 auto;}
-    a{color:inherit;}
-
-    button{font-family:inherit; cursor:pointer;}
-    .logout-btn{
-      font-size:12px; padding:6px 12px; border-radius:999px;
-      border:1px solid var(--line-strong); background:transparent; color:var(--paper-dim);
-      text-decoration:none; display:inline-block;
-    }
-    .logout-btn:hover{color:var(--paper); border-color:var(--paper-dim);}
-    .btn-primary{
-      font-size:15px; font-weight:600; padding:13px 26px; border-radius:999px; border:none;
-      background:var(--amber); color:var(--darkroom);
-    }
-    .btn-primary:hover{background:var(--amber-bright);}
-    .btn-primary:disabled{opacity:0.6; cursor:default;}
-
-    /* --- Login --- */
-    #loginView.wrap{min-height:calc(100vh - 56px); display:flex; align-items:center; justify-content:center;}
-    .login-card{
-      background:var(--darkroom-2); border:1px solid var(--line-strong); border-radius:14px;
-      padding:32px 28px; max-width:340px; width:100%; text-align:center; box-shadow:var(--shadow);
-    }
-...
-</persisted-output>
 <!doctype html>
 <html lang="es">
 <head>
@@ -400,3 +348,341 @@ Preview (first 2KB):
     const countEl = document.getElementById('count');
     const contentEl = document.getElementById('content');
     const voiceContentEl = document.getElementById('voiceContent');
+        const formatValueEl = document.getElementById('formatValue');
+    const tabFotosBtn = document.getElementById('tabFotosBtn');
+    const tabMensajesBtn = document.getElementById('tabMensajesBtn');
+
+    function esc(s){
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function fmtTime(iso){
+      try { return new Date(iso).toLocaleString('es-MX', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }); }
+      catch (e) { return ''; }
+    }
+    function fmtDate(dateStr){
+      if (!dateStr) return 'Por definir';
+      try { return new Date(dateStr + 'T00:00:00').toLocaleDateString('es-MX', { day:'numeric', month:'long', year:'numeric' }); }
+      catch (e) { return dateStr; }
+    }
+
+    let currentPhotos = [];
+
+    function render(photos, filterKey) {
+      countEl.textContent = photos.length;
+      currentPhotos = photos;
+      if (photos.length === 0) {
+        contentEl.innerHTML = '<div class="empty">Aún no hay fotos. En cuanto alguien use la cámara, van a aparecer aquí solas.</div>';
+        return;
+      }
+      const printClass = 'print' + (filterKey === 'polaroid' ? ' polaroid-card' : '');
+      const shotClass = 'shot' + (filterKey === 'vintage' ? ' vintage-glow' : '');
+      contentEl.innerHTML = '<div class="grid">' + photos.map((p, i) => {
+        const hasCaption = p.guest_name || p.caption;
+        const captionHtml = hasCaption
+          ? '<div class="print-caption">' +
+              (p.guest_name ? '<span class="g-name">' + esc(p.guest_name) + '</span>' : '') +
+              (p.caption ? '<span class="g-msg">“' + esc(p.caption) + '”</span>' : '') +
+            '</div>'
+          : '';
+        return '<div class="' + printClass + '" data-index="' + i + '"><span class="' + shotClass + '"><img class="filter-' + esc(filterKey) + '" src="' + esc(p.photo_url) + '" alt="Foto del álbum" loading="lazy"></span>' +
+          '<div class="ts">' + esc(fmtTime(p.created_at)) + '</div>' + captionHtml + '</div>';
+      }).join('') + '</div>';
+    }
+
+    // --- Pestañas: Fotos / Mensajes de voz ---------------------------------
+    function setTab(tab) {
+      const isVoice = tab === 'mensajes';
+      contentEl.hidden = isVoice;
+      voiceContentEl.hidden = !isVoice;
+      tabFotosBtn.classList.toggle('active', !isVoice);
+      tabMensajesBtn.classList.toggle('active', isVoice);
+    }
+    tabFotosBtn.addEventListener('click', () => setTab('fotos'));
+    tabMensajesBtn.addEventListener('click', () => setTab('mensajes'));
+
+    function renderVoiceMessages(messages) {
+      if (messages.length === 0) {
+        voiceContentEl.innerHTML = '<div class="empty">Aún no hay mensajes de voz. En cuanto alguien grabe uno desde la cámara, va a aparecer aquí solo.</div>';
+        return;
+      }
+      voiceContentEl.innerHTML = '<div class="msg-list">' + messages.map(m => {
+        const nameHtml = m.guest_name
+          ? '<span class="msg-name">' + esc(m.guest_name) + '</span>'
+          : '<span class="msg-name anon">Invitado anónimo</span>';
+        return '<div class="msg-card">' +
+          '<div class="msg-top">' + nameHtml + '<span class="msg-ts">' + esc(fmtTime(m.created_at)) + '</span></div>' +
+          '<audio controls src="' + esc(m.audio_url) + '"></audio>' +
+          '</div>';
+      }).join('') + '</div>';
+    }
+
+    async function loadVoiceMessages() {
+      const { data, error } = await db.from('voice_messages').select('*').eq('event_id', currentEvent.id).order('created_at', { ascending: false });
+      if (error) {
+        voiceContentEl.innerHTML = '<div class="err">No se pudieron cargar los mensajes: ' + esc(error.message) + '</div>';
+        return;
+      }
+      renderVoiceMessages(data);
+    }
+
+    // --- Lightbox: ampliar una foto y navegar con flechas -----------------
+    const lightbox = document.getElementById('lightbox');
+    const lbFrameCard = document.getElementById('lbFrameCard');
+    const lbShot = document.getElementById('lbShot');
+    const lbImg = document.getElementById('lbImg');
+    const lbCaption = document.getElementById('lbCaption');
+    const lbTs = document.getElementById('lbTs');
+    const lbCloseBtn = document.getElementById('lbCloseBtn');
+    const lbPrevBtn = document.getElementById('lbPrevBtn');
+    const lbNextBtn = document.getElementById('lbNextBtn');
+
+    let lightboxIndex = -1;
+
+    function renderLightbox() {
+      const p = currentPhotos[lightboxIndex];
+      if (!p) return;
+      const filterKey = (currentEvent && currentEvent.filter) || 'vintage';
+
+      lbImg.className = 'filter-' + filterKey;
+      lbImg.src = p.photo_url;
+      lbFrameCard.classList.toggle('polaroid-card', filterKey === 'polaroid');
+      lbShot.classList.toggle('vintage-glow', filterKey === 'vintage');
+
+      const hasCaption = p.guest_name || p.caption;
+      lbCaption.innerHTML = hasCaption
+        ? (p.guest_name ? '<span class="g-name">' + esc(p.guest_name) + '</span>' : '') +
+          (p.caption ? '<span class="g-msg">“' + esc(p.caption) + '”</span>' : '')
+        : '';
+      lbTs.textContent = fmtTime(p.created_at);
+
+      lbPrevBtn.disabled = lightboxIndex <= 0;
+      lbNextBtn.disabled = lightboxIndex >= currentPhotos.length - 1;
+    }
+
+    function openLightbox(index) {
+      if (index < 0 || index >= currentPhotos.length) return;
+      lightboxIndex = index;
+      renderLightbox();
+      lightbox.hidden = false;
+    }
+
+    function closeLightbox() {
+      lightbox.hidden = true;
+      lightboxIndex = -1;
+    }
+
+    function lightboxPrev() {
+      if (lightboxIndex > 0) { lightboxIndex--; renderLightbox(); }
+    }
+    function lightboxNext() {
+      if (lightboxIndex < currentPhotos.length - 1) { lightboxIndex++; renderLightbox(); }
+    }
+
+    contentEl.addEventListener('click', (e) => {
+      const card = e.target.closest('.print');
+      if (!card) return;
+      const idx = Number(card.dataset.index);
+      if (!Number.isNaN(idx)) openLightbox(idx);
+    });
+
+    lbCloseBtn.addEventListener('click', closeLightbox);
+    lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
+    lbPrevBtn.addEventListener('click', lightboxPrev);
+    lbNextBtn.addEventListener('click', lightboxNext);
+
+    document.addEventListener('keydown', (e) => {
+      if (lightbox.hidden) return;
+      if (e.key === 'Escape') closeLightbox();
+      else if (e.key === 'ArrowLeft') lightboxPrev();
+      else if (e.key === 'ArrowRight') lightboxNext();
+    });
+
+    let currentEvent = null;
+    let pollTimer = null;
+
+    async function loadPhotos() {
+      const { data, error } = await db.from('photos').select('*').eq('event_id', currentEvent.id).order('created_at', { ascending: false });
+      if (error) {
+        contentEl.innerHTML = '<div class="err">No se pudo cargar el álbum: ' + esc(error.message) + '</div>';
+        countEl.textContent = '0';
+        return;
+      }
+      render(data, currentEvent.filter || 'vintage');
+    }
+
+    function setupQr(slug) {
+      const qrBox = document.getElementById('qrBox');
+      const qrLinkEl = document.getElementById('qrLink');
+      const downloadQrBtn = document.getElementById('downloadQrBtn');
+
+      const cameraUrl = window.location.origin + '/camara/?e=' + encodeURIComponent(slug);
+      qrLinkEl.textContent = cameraUrl;
+
+      const qr = qrcode(0, 'M');
+      qr.addData(cameraUrl);
+      qr.make();
+      const svg = qr.createSvgTag({ cellSize: 5, margin: 2, scalable: true });
+      qrBox.innerHTML = svg;
+      downloadQrBtn.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+      return cameraUrl;
+    }
+
+    document.getElementById('copyLinkBtn').addEventListener('click', async () => {
+      const cameraUrl = document.getElementById('qrLink').textContent;
+      const msgEl = document.getElementById('qrCopiedMsg');
+      try { await navigator.clipboard.writeText(cameraUrl); } catch (e) { /* el link ya está visible para copiar a mano */ }
+      msgEl.hidden = false;
+      setTimeout(() => { msgEl.hidden = true; }, 2000);
+    });
+
+    function showAlbumDashboard(eventRow) {
+      currentEvent = eventRow;
+      document.getElementById('eventTitle').textContent = eventRow.name;
+      document.getElementById('eventDateText').textContent = fmtDate(eventRow.event_date);
+      document.getElementById('eventLocationText').textContent = eventRow.location || 'Por definir';
+      formatValueEl.textContent = FILTER_LABELS[eventRow.filter] || FILTER_LABELS.vintage;
+      setupQr(eventRow.slug);
+
+      loginView.hidden = true;
+      pendingView.hidden = true;
+      albumView.hidden = false;
+
+      setTab('fotos');
+      loadPhotos();
+      loadVoiceMessages();
+      if (!pollTimer) pollTimer = setInterval(() => { loadPhotos(); loadVoiceMessages(); }, 6000);
+    }
+
+    function showPendingPayment(eventRow) {
+      currentEvent = eventRow;
+      document.getElementById('pendingEventName').textContent = eventRow.name;
+      document.getElementById('pendingDate').textContent = fmtDate(eventRow.event_date);
+      document.getElementById('pendingLocation').textContent = eventRow.location || 'Por definir';
+      document.getElementById('pendingPackage').textContent = '🎟️ ' + (PACKAGE_LABELS[eventRow.package] || eventRow.package);
+
+      loginView.hidden = true;
+      albumView.hidden = true;
+      pendingView.hidden = false;
+    }
+
+    function showLogin() {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      currentEvent = null;
+      closeLightbox();
+      pendingView.hidden = true;
+      albumView.hidden = true;
+      loginView.hidden = false;
+      loginCard.hidden = false;
+      forgotCard.hidden = true;
+      loginForm.reset();
+    }
+
+    async function loadMyEventAndRender() {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session) { showLogin(); return; }
+
+      const { data: eventRow, error } = await db
+        .from('events')
+        .select('id, name, slug, event_date, location, package, status, filter')
+        .eq('owner_id', session.user.id)
+        .single();
+
+      if (error || !eventRow) {
+        loginView.hidden = true;
+        pendingView.hidden = true;
+        albumView.hidden = false;
+        contentEl.innerHTML = '<div class="err">No encontramos ningún evento asociado a tu cuenta.</div>';
+        document.getElementById('eventTitle').textContent = 'Sin evento';
+        countEl.textContent = '0';
+        return;
+      }
+
+      if (eventRow.status === 'activo') {
+        showAlbumDashboard(eventRow);
+      } else {
+        showPendingPayment(eventRow);
+      }
+    }
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loginErr.textContent = '';
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const { error } = await db.auth.signInWithPassword({ email, password });
+      if (error) { loginErr.textContent = 'Correo o contraseña incorrectos.'; return; }
+      await loadMyEventAndRender();
+    });
+
+    // --- Recuperar contraseña -------------------------------------------
+    document.getElementById('forgotLinkBtn').addEventListener('click', () => {
+      loginErr.textContent = '';
+      forgotErr.textContent = '';
+      forgotOk.hidden = true;
+      loginCard.hidden = true;
+      forgotCard.hidden = false;
+    });
+
+    document.getElementById('backToLoginBtn').addEventListener('click', () => {
+      forgotCard.hidden = true;
+      loginCard.hidden = false;
+    });
+
+    forgotForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      forgotErr.textContent = '';
+      forgotOk.hidden = true;
+      const email = document.getElementById('forgotEmail').value.trim();
+      const submitBtn = forgotForm.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Enviando…';
+      try {
+        const { error } = await db.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + '/organizador/nueva-contrasena.html'
+        });
+        if (error) throw error;
+        forgotOk.hidden = false;
+        forgotForm.reset();
+      } catch (err) {
+        forgotErr.textContent = 'No se pudo enviar el link: ' + (err.message || 'intenta de nuevo');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Enviar link';
+      }
+    });
+
+    async function doLogout() {
+      await db.auth.signOut();
+      showLogin();
+    }
+    logoutBtn.addEventListener('click', doLogout);
+    pendingLogoutBtn.addEventListener('click', doLogout);
+
+    payNowBtn.addEventListener('click', async () => {
+      pendingErr.textContent = '';
+      payNowBtn.disabled = true;
+      payNowBtn.textContent = 'Conectando…';
+      try {
+        const res = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: currentEvent.id })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.url) {
+          pendingErr.textContent = data.error || 'El cobro automático todavía no está conectado.';
+          return;
+        }
+        window.location.href = data.url;
+      } catch (e) {
+        pendingErr.textContent = 'No se pudo conectar con el pago. Intenta de nuevo.';
+      } finally {
+        payNowBtn.disabled = false;
+        payNowBtn.textContent = 'Pagar ahora';
+      }
+    });
+
+    loadMyEventAndRender();
+  </script>
+</body>
+</html>
