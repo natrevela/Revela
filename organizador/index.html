@@ -133,7 +133,8 @@
     .err{border:1px solid rgba(217,105,79,0.5); background:var(--darkroom-2); color:#f0b6a5; border-radius:10px; padding:12px 15px; font-size:13.5px; margin-bottom:18px;}
 
     .grid{display:grid; gap:16px; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));}
-    .print{background:var(--paper); border-radius:3px; padding:8px 8px 22px; box-shadow:0 14px 30px -16px rgba(0,0,0,0.7);}
+    .print{background:var(--paper); border-radius:3px; padding:8px 8px 22px; box-shadow:0 14px 30px -16px rgba(0,0,0,0.7); cursor:pointer; transition:transform 0.15s;}
+    .print:hover{transform:scale(1.03) rotate(0deg) !important;}
     .print:nth-child(3n+1){transform:rotate(-1.6deg);}
     .print:nth-child(3n+2){transform:rotate(1.2deg);}
     .print:nth-child(3n){transform:rotate(-0.6deg);}
@@ -156,6 +157,39 @@
 
     @media (max-width:640px){
       .qr-card{grid-column:span 1;}
+    }
+
+    /* --- Lightbox (foto ampliada) --- */
+    .lightbox{
+      position:fixed; inset:0; background:rgba(10,7,4,0.92); z-index:100;
+      display:flex; align-items:center; justify-content:center; padding:20px;
+    }
+    .lb-content{max-width:min(520px, 88vw); display:flex; flex-direction:column; align-items:center; text-align:center;}
+    .lb-frame-card{background:var(--paper); border-radius:4px; padding:14px 14px 30px; box-shadow:0 20px 50px -20px rgba(0,0,0,0.8); max-width:100%;}
+    .lb-frame-card.polaroid-card{padding:16px 16px 52px;}
+    .lb-shot{position:relative; display:block; overflow:hidden; border-radius:2px; max-height:60vh;}
+    #lbImg{max-width:100%; max-height:60vh; display:block; border-radius:2px; object-fit:contain; margin:0 auto;}
+    .lb-caption{margin-top:16px;}
+    .lb-caption .g-name{display:block; font-size:14px; font-weight:700; color:var(--paper);}
+    .lb-caption .g-msg{display:block; font-size:13px; color:var(--paper-dim); font-style:italic; margin-top:4px;}
+    .lb-ts{margin-top:8px; font-size:11.5px; color:var(--paper-faint); font-family:ui-monospace, monospace;}
+    .lb-close, .lb-nav{
+      border:1px solid var(--line-strong); background:var(--darkroom-2); color:var(--paper);
+      display:flex; align-items:center; justify-content:center; cursor:pointer;
+    }
+    .lb-close{
+      position:absolute; top:18px; right:18px; width:38px; height:38px; border-radius:50%; font-size:16px;
+    }
+    .lb-nav{
+      position:absolute; top:50%; transform:translateY(-50%); width:46px; height:46px; border-radius:50%; font-size:22px;
+    }
+    .lb-prev{left:16px;}
+    .lb-next{right:16px;}
+    .lb-nav:disabled{opacity:0.25; cursor:default;}
+    @media (max-width:640px){
+      .lb-nav{width:38px; height:38px; font-size:18px;}
+      .lb-prev{left:6px;} .lb-next{right:6px;}
+      .lb-close{top:10px; right:10px;}
     }
   </style>
 </head>
@@ -241,6 +275,20 @@
     <div id="content"></div>
   </div>
 
+  <!-- Foto ampliada, con flechas para navegar -->
+  <div class="lightbox" id="lightbox" hidden>
+    <button class="lb-close" id="lbCloseBtn" type="button" aria-label="Cerrar">✕</button>
+    <button class="lb-nav lb-prev" id="lbPrevBtn" type="button" aria-label="Foto anterior">‹</button>
+    <div class="lb-content">
+      <div class="lb-frame-card" id="lbFrameCard">
+        <span class="lb-shot" id="lbShot"><img id="lbImg" alt="Foto del álbum"></span>
+      </div>
+      <div class="lb-caption" id="lbCaption"></div>
+      <div class="lb-ts" id="lbTs"></div>
+    </div>
+    <button class="lb-nav lb-next" id="lbNextBtn" type="button" aria-label="Foto siguiente">›</button>
+  </div>
+
   <script>
     const SUPABASE_URL = 'https://qhwxtgzqnztshmudabho.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFod3h0Z3pxbnp0c2htdWRhYmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTI5NzQsImV4cCI6MjEwMzM2ODk3NH0.ufpYauUWbbbJrAPOTY3zA6vQ9DfsYBEFXVsZrtPV2YU';
@@ -281,15 +329,18 @@
       catch (e) { return dateStr; }
     }
 
+    let currentPhotos = [];
+
     function render(photos, filterKey) {
       countEl.textContent = photos.length;
+      currentPhotos = photos;
       if (photos.length === 0) {
         contentEl.innerHTML = '<div class="empty">Aún no hay fotos. En cuanto alguien use la cámara, van a aparecer aquí solas.</div>';
         return;
       }
       const printClass = 'print' + (filterKey === 'polaroid' ? ' polaroid-card' : '');
       const shotClass = 'shot' + (filterKey === 'vintage' ? ' vintage-glow' : '');
-      contentEl.innerHTML = '<div class="grid">' + photos.map(p => {
+      contentEl.innerHTML = '<div class="grid">' + photos.map((p, i) => {
         const hasCaption = p.guest_name || p.caption;
         const captionHtml = hasCaption
           ? '<div class="print-caption">' +
@@ -297,10 +348,82 @@
               (p.caption ? '<span class="g-msg">“' + esc(p.caption) + '”</span>' : '') +
             '</div>'
           : '';
-        return '<div class="' + printClass + '"><span class="' + shotClass + '"><img class="filter-' + esc(filterKey) + '" src="' + esc(p.photo_url) + '" alt="Foto del álbum" loading="lazy"></span>' +
+        return '<div class="' + printClass + '" data-index="' + i + '"><span class="' + shotClass + '"><img class="filter-' + esc(filterKey) + '" src="' + esc(p.photo_url) + '" alt="Foto del álbum" loading="lazy"></span>' +
           '<div class="ts">' + esc(fmtTime(p.created_at)) + '</div>' + captionHtml + '</div>';
       }).join('') + '</div>';
     }
+
+    // --- Lightbox: ampliar una foto y navegar con flechas -----------------
+    const lightbox = document.getElementById('lightbox');
+    const lbFrameCard = document.getElementById('lbFrameCard');
+    const lbShot = document.getElementById('lbShot');
+    const lbImg = document.getElementById('lbImg');
+    const lbCaption = document.getElementById('lbCaption');
+    const lbTs = document.getElementById('lbTs');
+    const lbCloseBtn = document.getElementById('lbCloseBtn');
+    const lbPrevBtn = document.getElementById('lbPrevBtn');
+    const lbNextBtn = document.getElementById('lbNextBtn');
+
+    let lightboxIndex = -1;
+
+    function renderLightbox() {
+      const p = currentPhotos[lightboxIndex];
+      if (!p) return;
+      const filterKey = (currentEvent && currentEvent.filter) || 'vintage';
+
+      lbImg.className = 'filter-' + filterKey;
+      lbImg.src = p.photo_url;
+      lbFrameCard.classList.toggle('polaroid-card', filterKey === 'polaroid');
+      lbShot.classList.toggle('vintage-glow', filterKey === 'vintage');
+
+      const hasCaption = p.guest_name || p.caption;
+      lbCaption.innerHTML = hasCaption
+        ? (p.guest_name ? '<span class="g-name">' + esc(p.guest_name) + '</span>' : '') +
+          (p.caption ? '<span class="g-msg">“' + esc(p.caption) + '”</span>' : '')
+        : '';
+      lbTs.textContent = fmtTime(p.created_at);
+
+      lbPrevBtn.disabled = lightboxIndex <= 0;
+      lbNextBtn.disabled = lightboxIndex >= currentPhotos.length - 1;
+    }
+
+    function openLightbox(index) {
+      if (index < 0 || index >= currentPhotos.length) return;
+      lightboxIndex = index;
+      renderLightbox();
+      lightbox.hidden = false;
+    }
+
+    function closeLightbox() {
+      lightbox.hidden = true;
+      lightboxIndex = -1;
+    }
+
+    function lightboxPrev() {
+      if (lightboxIndex > 0) { lightboxIndex--; renderLightbox(); }
+    }
+    function lightboxNext() {
+      if (lightboxIndex < currentPhotos.length - 1) { lightboxIndex++; renderLightbox(); }
+    }
+
+    contentEl.addEventListener('click', (e) => {
+      const card = e.target.closest('.print');
+      if (!card) return;
+      const idx = Number(card.dataset.index);
+      if (!Number.isNaN(idx)) openLightbox(idx);
+    });
+
+    lbCloseBtn.addEventListener('click', closeLightbox);
+    lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
+    lbPrevBtn.addEventListener('click', lightboxPrev);
+    lbNextBtn.addEventListener('click', lightboxNext);
+
+    document.addEventListener('keydown', (e) => {
+      if (lightbox.hidden) return;
+      if (e.key === 'Escape') closeLightbox();
+      else if (e.key === 'ArrowLeft') lightboxPrev();
+      else if (e.key === 'ArrowRight') lightboxNext();
+    });
 
     let currentEvent = null;
     let pollTimer = null;
@@ -371,6 +494,7 @@
     function showLogin() {
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
       currentEvent = null;
+      closeLightbox();
       pendingView.hidden = true;
       albumView.hidden = true;
       loginView.hidden = false;
