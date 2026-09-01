@@ -191,6 +191,11 @@
       .lb-prev{left:6px;} .lb-next{right:6px;}
       .lb-close{top:10px; right:10px;}
     }
+
+    /* Asegura que "hidden" siempre oculte, incluso en elementos que también
+       tienen su propio "display" (como flex) -- sin esto, el navegador
+       puede ignorar "hidden" y dejar el elemento visible por error. */
+    [hidden]{ display:none !important; }
   </style>
 </head>
 <body>
