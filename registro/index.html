@@ -75,6 +75,11 @@
       text-decoration:none; border-radius:999px; padding:13px 26px; background:var(--amber); color:var(--darkroom);
     }
     .btn-whatsapp:hover{background:var(--amber-bright);}
+
+    /* Asegura que "hidden" siempre oculte, incluso en elementos que también
+       tienen su propio "display" (como flex) -- sin esto, el navegador
+       puede ignorar "hidden" y dejar el elemento visible por error. */
+    [hidden]{ display:none !important; }
   </style>
 </head>
 <body>
