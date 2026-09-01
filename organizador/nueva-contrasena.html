@@ -1,1 +1,112 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Revelado — Nueva contraseña</title>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root{
+      --darkroom:#150f0a; --darkroom-2:#221a12;
+      --paper:#f3e9d7; --paper-dim:#c2b498;
+      --amber:#e8823c; --amber-bright:#ffa858; --fixer:#4fa69c;
+      --line-strong:rgba(243,233,215,0.26);
+      --shadow:0 14px 30px -16px rgba(0,0,0,0.7);
+    }
+    *,*::before,*::after{box-sizing:border-box;}
+    body{
+      margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+      background:var(--darkroom); color:var(--paper); font-family:system-ui, sans-serif; padding:24px;
+    }
+    .card{
+      background:var(--darkroom-2); border:1px solid var(--line-strong); border-radius:14px;
+      padding:32px 28px; max-width:360px; width:100%; text-align:center; box-shadow:var(--shadow);
+    }
+    .card h1{font-size:1.4rem; margin:0 0 6px;}
+    .card p{color:var(--paper-dim); font-size:13.5px; margin:0 0 20px; line-height:1.5;}
+    form{display:flex; flex-direction:column; gap:10px;}
+    input{
+      font-family:inherit; font-size:14px; padding:11px 12px; border-radius:8px;
+      border:1px solid var(--line-strong); background:var(--darkroom); color:var(--paper);
+    }
+    input:focus{outline:2px solid var(--fixer); outline-offset:1px;}
+    button[type="submit"]{
+      margin-top:4px; font-family:inherit; font-size:14px; font-weight:600; padding:11px 12px;
+      border-radius:8px; border:none; background:var(--amber); color:var(--darkroom); cursor:pointer;
+    }
+    button[type="submit"]:hover{background:var(--amber-bright);}
+    button[type="submit"]:disabled{opacity:0.6; cursor:default;}
+    .msg-err{color:#d9694f; font-size:12.5px; margin-top:14px; min-height:16px;}
+    .msg-ok{color:var(--fixer); font-size:13.5px; margin-top:10px; line-height:1.5;}
+    a.btn-link{
+      display:inline-block; margin-top:18px; font-size:13px; color:var(--paper-dim); text-decoration:underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <h1>Crea tu nueva contraseña</h1>
+    <p id="subtitle">Escribe tu nueva contraseña dos veces para confirmarla.</p>
+
+    <form id="resetForm">
+      <input type="password" id="newPassword" placeholder="Nueva contraseña" minlength="6" required autocomplete="new-password">
+      <input type="password" id="confirmPassword" placeholder="Confirma la contraseña" minlength="6" required autocomplete="new-password">
+      <button type="submit" id="submitBtn">Guardar contraseña</button>
+    </form>
+    <div class="msg-err" id="msgErr"></div>
+    <div class="msg-ok" id="msgOk" hidden>¡Listo! Tu contraseña se actualizó. <a class="btn-link" href="/organizador/">Ir a iniciar sesión</a></div>
+  </div>
+
+  <script>
+    // --- Conexión con Supabase -------------------------------------------
+    const SUPABASE_URL = 'https://qhwxtgzqnztshmudabho.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFod3h0Z3pxbnp0c2htdWRhYmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTI5NzQsImV4cCI6MjEwMzM2ODk3NH0.ufpYauUWbbbJrAPOTY3zA6vQ9DfsYBEFXVsZrtPV2YU';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const subtitle = document.getElementById('subtitle');
+    const resetForm = document.getElementById('resetForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const msgErr = document.getElementById('msgErr');
+    const msgOk = document.getElementById('msgOk');
+
+    // El link del correo de recuperación trae una sesión especial en la propia URL.
+    // El navegador de Supabase la detecta sola al cargar la página.
+    (async function checkSession() {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session) {
+        subtitle.textContent = 'Este link ya no es válido o ya se usó. Pide uno nuevo desde el panel.';
+        resetForm.hidden = true;
+      }
+    })();
+
+    resetForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msgErr.textContent = '';
+      const pass1 = document.getElementById('newPassword').value;
+      const pass2 = document.getElementById('confirmPassword').value;
+
+      if (pass1 !== pass2) {
+        msgErr.textContent = 'Las contraseñas no coinciden.';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Guardando…';
+      try {
+        const { error } = await db.auth.updateUser({ password: pass1 });
+        if (error) throw error;
+        resetForm.hidden = true;
+        subtitle.hidden = true;
+        msgOk.hidden = false;
+      } catch (err) {
+        msgErr.textContent = 'No se pudo actualizar: ' + (err.message || 'intenta de nuevo');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Guardar contraseña';
+      }
+    });
+  </script>
+</body>
+</html>
