@@ -85,6 +85,11 @@
     .status{margin-top:18px; font-size:13.5px; color:var(--paper-dim); min-height:20px;}
     .status.ok{color:var(--fixer);}
     .status.err{color:#d9694f;}
+
+    /* Asegura que "hidden" siempre oculte, incluso en elementos que también
+       tienen su propio "display" (como flex) -- sin esto, el navegador
+       puede ignorar "hidden" y dejar el elemento visible por error. */
+    [hidden]{ display:none !important; }
   </style>
 </head>
 <body>
