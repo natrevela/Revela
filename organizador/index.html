@@ -138,6 +138,9 @@
     .print:nth-child(3n+2){transform:rotate(1.2deg);}
     .print:nth-child(3n){transform:rotate(-0.6deg);}
     .print .ts{font-size:9px; color:var(--darkroom); opacity:0.55; margin-top:6px; text-align:center; font-family:ui-monospace, monospace;}
+    .print-caption{margin-top:6px; text-align:center;}
+    .print-caption .g-name{display:block; font-size:11px; font-weight:700; color:var(--darkroom);}
+    .print-caption .g-msg{display:block; font-size:10.5px; color:var(--darkroom); opacity:0.75; font-style:italic; line-height:1.35; margin-top:2px;}
     .shot{position:relative; display:block; overflow:hidden; border-radius:2px;}
     .print img{width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:2px; display:block;}
     .print.polaroid-card{background:#ffffff; padding:14px 14px 46px;}
@@ -286,10 +289,17 @@
       }
       const printClass = 'print' + (filterKey === 'polaroid' ? ' polaroid-card' : '');
       const shotClass = 'shot' + (filterKey === 'vintage' ? ' vintage-glow' : '');
-      contentEl.innerHTML = '<div class="grid">' + photos.map(p =>
-        '<div class="' + printClass + '"><span class="' + shotClass + '"><img class="filter-' + esc(filterKey) + '" src="' + esc(p.photo_url) + '" alt="Foto del álbum" loading="lazy"></span>' +
-        '<div class="ts">' + esc(fmtTime(p.created_at)) + '</div></div>'
-      ).join('') + '</div>';
+      contentEl.innerHTML = '<div class="grid">' + photos.map(p => {
+        const hasCaption = p.guest_name || p.caption;
+        const captionHtml = hasCaption
+          ? '<div class="print-caption">' +
+              (p.guest_name ? '<span class="g-name">' + esc(p.guest_name) + '</span>' : '') +
+              (p.caption ? '<span class="g-msg">“' + esc(p.caption) + '”</span>' : '') +
+            '</div>'
+          : '';
+        return '<div class="' + printClass + '"><span class="' + shotClass + '"><img class="filter-' + esc(filterKey) + '" src="' + esc(p.photo_url) + '" alt="Foto del álbum" loading="lazy"></span>' +
+          '<div class="ts">' + esc(fmtTime(p.created_at)) + '</div>' + captionHtml + '</div>';
+      }).join('') + '</div>';
     }
 
     let currentEvent = null;
