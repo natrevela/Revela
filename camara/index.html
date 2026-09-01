@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Revelado</title>
 
+  <!-- Esta línea trae la librería de Supabase, lista para usar como "supabase.createClient(...)" -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
@@ -22,10 +23,11 @@
     h1{font-size:2rem; margin:0 0 6px;}
     p{color:var(--paper-dim); margin:0 0 28px; max-width:34ch;}
 
+    /* --- Pantalla de carga / error (antes de saber qué evento es) --- */
     .state-msg{color:var(--paper-dim); font-size:14px; max-width:30ch; line-height:1.6;}
     .state-msg.error{color:#d9694f;}
 
-    .frame-card{margin-bottom:26px;}
+    .frame-card{margin-bottom:22px;}
     .frame-card.polaroid-card{
       background:#ffffff; padding:14px 14px 46px; border-radius:4px;
       box-shadow:0 14px 30px -16px rgba(0,0,0,0.55);
@@ -49,7 +51,7 @@
       mix-blend-mode:screen;
     }
 
-    button{font-family:inherit; cursor:pointer;}
+    button, textarea, input{font-family:inherit; cursor:pointer;}
     .shutter-btn{
       width:84px; height:84px; border-radius:50%;
       background:radial-gradient(circle at 35% 30%, var(--amber-bright), var(--amber) 65%);
@@ -59,24 +61,62 @@
     .shutter-btn:disabled{opacity:0.5;}
     input[type="file"]{display:none;}
 
-    .status{margin-top:20px; font-size:13.5px; color:var(--paper-dim); min-height:20px;}
+    /* --- Panel de detalles (nombre + mensaje) antes de confirmar la subida --- */
+    .details-panel{
+      width:min(320px, 84vw); text-align:left; margin-bottom:8px;
+      background:var(--darkroom-2); border:1px solid var(--line); border-radius:14px; padding:16px;
+    }
+    .details-panel label{display:block; font-size:11.5px; color:var(--paper-dim); margin-bottom:4px; font-weight:600;}
+    .details-panel .field{margin-bottom:12px;}
+    .details-panel input[type="text"], .details-panel textarea{
+      width:100%; font-size:14px; padding:10px 11px; border-radius:8px; cursor:text;
+      border:1px solid var(--line-strong); background:var(--darkroom); color:var(--paper); resize:none;
+    }
+    .details-panel input:focus, .details-panel textarea:focus{outline:2px solid var(--fixer); outline-offset:1px;}
+    .details-actions{display:flex; gap:10px;}
+    .btn-secondary, .btn-upload{
+      flex:1; font-size:13.5px; font-weight:600; padding:11px 10px; border-radius:8px; border:none;
+    }
+    .btn-secondary{background:transparent; border:1px solid var(--line-strong); color:var(--paper);}
+    .btn-upload{background:var(--amber); color:var(--darkroom);}
+    .btn-upload:hover{background:var(--amber-bright);}
+    .btn-secondary:disabled, .btn-upload:disabled{opacity:0.6; cursor:default;}
+
+    .status{margin-top:18px; font-size:13.5px; color:var(--paper-dim); min-height:20px;}
     .status.ok{color:var(--fixer);}
     .status.err{color:#d9694f;}
   </style>
 </head>
 <body>
 
+  <!-- Mientras se identifica el evento del QR, o si el link no es válido -->
   <div id="stateScreen">
     <h1>Revelado 📸</h1>
     <p class="state-msg" id="stateMsg">Cargando tu evento…</p>
   </div>
 
+  <!-- La cámara solo aparece una vez que sabemos que el evento existe y está activo -->
   <div id="cameraUI" hidden>
     <h1>Revelado 📸</h1>
     <p>Toca el obturador y tu foto entra directo al álbum.</p>
 
     <div class="frame-card" id="frameCard">
       <div class="frame" id="frame"><div class="placeholder">Aquí aparecerá tu foto</div></div>
+    </div>
+
+    <div class="details-panel" id="detailsPanel" hidden>
+      <div class="field">
+        <label for="guestName">Tu nombre (opcional)</label>
+        <input type="text" id="guestName" placeholder="¿Cómo te llamas?" maxlength="60">
+      </div>
+      <div class="field">
+        <label for="caption">Mensaje (opcional)</label>
+        <textarea id="caption" placeholder="Escribe algo lindo…" maxlength="200" rows="2"></textarea>
+      </div>
+      <div class="details-actions">
+        <button type="button" class="btn-secondary" id="retakeBtn">Tomar otra</button>
+        <button type="button" class="btn-upload" id="confirmUploadBtn">Subir foto</button>
+      </div>
     </div>
 
     <button class="shutter-btn" id="shutterBtn" aria-label="Tomar foto">
@@ -88,11 +128,13 @@
   </div>
 
   <script>
+    // --- 1) Conexión con Supabase -------------------------------------
     const SUPABASE_URL = 'https://qhwxtgzqnztshmudabho.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFod3h0Z3pxbnp0c2htdWRhYmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTI5NzQsImV4cCI6MjEwMzM2ODk3NH0.ufpYauUWbbbJrAPOTY3zA6vQ9DfsYBEFXVsZrtPV2YU';
 
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // --- 2) Elementos de la página --------------------------------------
     const stateScreen = document.getElementById('stateScreen');
     const stateMsg = document.getElementById('stateMsg');
     const cameraUI = document.getElementById('cameraUI');
@@ -100,6 +142,11 @@
     const cameraInput = document.getElementById('cameraInput');
     const frame = document.getElementById('frame');
     const statusEl = document.getElementById('status');
+    const detailsPanel = document.getElementById('detailsPanel');
+    const guestNameInput = document.getElementById('guestName');
+    const captionInput = document.getElementById('caption');
+    const retakeBtn = document.getElementById('retakeBtn');
+    const confirmUploadBtn = document.getElementById('confirmUploadBtn');
 
     function setStatus(text, kind) {
       statusEl.textContent = text || '';
@@ -113,8 +160,8 @@
       cameraUI.hidden = true;
     }
 
-    // --- Identificar el evento a partir del link (?e=slug-del-evento) ---
-    let currentEvent = null;
+    // --- 3) Identificar el evento a partir del link (?e=slug-del-evento) ---
+    let currentEvent = null; // { id, filterClass }
 
     async function loadEvent() {
       const slug = new URLSearchParams(window.location.search).get('e');
@@ -138,10 +185,17 @@
       document.getElementById('frameCard').classList.toggle('polaroid-card', currentEvent.filterClass === 'filter-polaroid');
       document.getElementById('frame').classList.toggle('vintage-glow', currentEvent.filterClass === 'filter-vintage');
 
+      // si ya puso su nombre en una foto anterior de esta visita, lo recordamos
+      try {
+        const savedName = localStorage.getItem('revelado_guest_name');
+        if (savedName) guestNameInput.value = savedName;
+      } catch (e) { /* si el navegador bloquea localStorage, no pasa nada, solo no se recuerda */ }
+
       stateScreen.hidden = true;
       cameraUI.hidden = false;
     }
 
+    // --- 4) Achicar la foto antes de subirla ---------------------------
     function compress(file) {
       return new Promise((resolve, reject) => {
         const maxDim = 1200;
@@ -168,17 +222,21 @@
       });
     }
 
+    // --- 5) El flujo: foto -> vista previa + nombre/mensaje -> confirmar -> subir
+    let pendingBlob = null;
+
     shutterBtn.addEventListener('click', () => cameraInput.click());
 
     cameraInput.addEventListener('change', async () => {
       const file = cameraInput.files[0];
       if (!file || !currentEvent) return;
 
-      shutterBtn.disabled = true;
       setStatus('Revelando…');
+      shutterBtn.disabled = true;
 
       try {
         const blob = await compress(file);
+        pendingBlob = blob;
 
         frame.innerHTML = '';
         const img = document.createElement('img');
@@ -186,23 +244,69 @@
         img.src = URL.createObjectURL(blob);
         frame.appendChild(img);
 
+        setStatus('');
+        shutterBtn.hidden = true;
+        detailsPanel.hidden = false;
+      } catch (err) {
+        console.error(err);
+        setStatus('No se pudo procesar la foto: ' + (err.message || 'intenta de nuevo'), 'err');
+        shutterBtn.disabled = false;
+      } finally {
+        cameraInput.value = '';
+      }
+    });
+
+    retakeBtn.addEventListener('click', () => {
+      pendingBlob = null;
+      detailsPanel.hidden = true;
+      shutterBtn.hidden = false;
+      shutterBtn.disabled = false;
+      frame.innerHTML = '<div class="placeholder">Aquí aparecerá tu foto</div>';
+      cameraInput.click();
+    });
+
+    confirmUploadBtn.addEventListener('click', async () => {
+      if (!pendingBlob || !currentEvent) return;
+
+      const guestName = guestNameInput.value.trim();
+      const caption = captionInput.value.trim();
+
+      confirmUploadBtn.disabled = true;
+      retakeBtn.disabled = true;
+      confirmUploadBtn.textContent = 'Subiendo…';
+      setStatus('Revelando…');
+
+      try {
         const path = currentEvent.id + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
 
-        const { error: uploadError } = await db.storage.from('fotos').upload(path, blob, { contentType: 'image/jpeg' });
+        const { error: uploadError } = await db.storage.from('fotos').upload(path, pendingBlob, { contentType: 'image/jpeg' });
         if (uploadError) throw uploadError;
 
         const { data: pub } = db.storage.from('fotos').getPublicUrl(path);
 
-        const { error: insertError } = await db.from('photos').insert({ event_id: currentEvent.id, photo_url: pub.publicUrl });
+        const { error: insertError } = await db.from('photos').insert({
+          event_id: currentEvent.id,
+          photo_url: pub.publicUrl,
+          guest_name: guestName || null,
+          caption: caption || null
+        });
         if (insertError) throw insertError;
 
+        try { if (guestName) localStorage.setItem('revelado_guest_name', guestName); } catch (e) { /* ignorar */ }
+
         setStatus('¡Lista! Ya está en el álbum.', 'ok');
+        pendingBlob = null;
+        detailsPanel.hidden = true;
+        shutterBtn.hidden = false;
+        captionInput.value = '';
       } catch (err) {
         console.error(err);
         setStatus('No se pudo subir: ' + (err.message || 'intenta de nuevo'), 'err');
       } finally {
+        confirmUploadBtn.disabled = false;
+        retakeBtn.disabled = false;
+        confirmUploadBtn.textContent = 'Subir foto';
         shutterBtn.disabled = false;
-        cameraInput.value = '';
       }
     });
 
