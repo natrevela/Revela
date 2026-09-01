@@ -56,6 +56,12 @@
       border-radius:8px; border:none; background:var(--amber); color:var(--darkroom);
     }
     .login-err{color:#d9694f; font-size:12.5px; margin-top:12px; min-height:16px;}
+    .login-ok{color:var(--fixer); font-size:12.5px; margin-top:12px; line-height:1.5;}
+    .link-btn{
+      display:inline-block; margin-top:16px; background:none; border:none; color:var(--paper-dim);
+      font-size:12.5px; text-decoration:underline; cursor:pointer; font-family:inherit; padding:0;
+    }
+    .link-btn:hover{color:var(--paper);}
 
     /* --- Pantalla de pago pendiente --- */
     #pendingView.wrap{min-height:calc(100vh - 56px); display:flex; align-items:center; justify-content:center;}
@@ -153,7 +159,7 @@
 <body>
 
   <div class="wrap" id="loginView">
-    <div class="login-card">
+    <div class="login-card" id="loginCard">
       <h1>Revelado</h1>
       <p>Inicia sesión para ver tu panel</p>
       <form id="loginForm">
@@ -162,6 +168,19 @@
         <button type="submit">Entrar</button>
       </form>
       <div class="login-err" id="loginErr"></div>
+      <button type="button" class="link-btn" id="forgotLinkBtn">¿Olvidaste tu contraseña?</button>
+    </div>
+
+    <div class="login-card" id="forgotCard" hidden>
+      <h1>Recuperar contraseña</h1>
+      <p>Escribe tu correo y te mandamos un link para crear una nueva contraseña.</p>
+      <form id="forgotForm">
+        <input type="email" id="forgotEmail" placeholder="Correo" autocomplete="username" required>
+        <button type="submit">Enviar link</button>
+      </form>
+      <div class="login-err" id="forgotErr"></div>
+      <div class="login-ok" id="forgotOk" hidden>Si ese correo tiene una cuenta, te llegó un link para restablecer tu contraseña. Revisa tu bandeja de entrada (y spam).</div>
+      <button type="button" class="link-btn" id="backToLoginBtn">← Volver a iniciar sesión</button>
     </div>
   </div>
 
@@ -230,8 +249,13 @@
     const loginView = document.getElementById('loginView');
     const pendingView = document.getElementById('pendingView');
     const albumView = document.getElementById('albumView');
+    const loginCard = document.getElementById('loginCard');
+    const forgotCard = document.getElementById('forgotCard');
     const loginForm = document.getElementById('loginForm');
     const loginErr = document.getElementById('loginErr');
+    const forgotForm = document.getElementById('forgotForm');
+    const forgotErr = document.getElementById('forgotErr');
+    const forgotOk = document.getElementById('forgotOk');
     const logoutBtn = document.getElementById('logoutBtn');
     const pendingLogoutBtn = document.getElementById('pendingLogoutBtn');
     const payNowBtn = document.getElementById('payNowBtn');
@@ -340,6 +364,8 @@
       pendingView.hidden = true;
       albumView.hidden = true;
       loginView.hidden = false;
+      loginCard.hidden = false;
+      forgotCard.hidden = true;
       loginForm.reset();
     }
 
@@ -378,6 +404,43 @@
       const { error } = await db.auth.signInWithPassword({ email, password });
       if (error) { loginErr.textContent = 'Correo o contraseña incorrectos.'; return; }
       await loadMyEventAndRender();
+    });
+
+    // --- Recuperar contraseña -------------------------------------------
+    document.getElementById('forgotLinkBtn').addEventListener('click', () => {
+      loginErr.textContent = '';
+      forgotErr.textContent = '';
+      forgotOk.hidden = true;
+      loginCard.hidden = true;
+      forgotCard.hidden = false;
+    });
+
+    document.getElementById('backToLoginBtn').addEventListener('click', () => {
+      forgotCard.hidden = true;
+      loginCard.hidden = false;
+    });
+
+    forgotForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      forgotErr.textContent = '';
+      forgotOk.hidden = true;
+      const email = document.getElementById('forgotEmail').value.trim();
+      const submitBtn = forgotForm.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Enviando…';
+      try {
+        const { error } = await db.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + '/organizador/nueva-contrasena.html'
+        });
+        if (error) throw error;
+        forgotOk.hidden = false;
+        forgotForm.reset();
+      } catch (err) {
+        forgotErr.textContent = 'No se pudo enviar el link: ' + (err.message || 'intenta de nuevo');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Enviar link';
+      }
     });
 
     async function doLogout() {
