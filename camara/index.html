@@ -21,11 +21,19 @@
       background:var(--darkroom); color:var(--paper); font-family:system-ui, sans-serif; text-align:center; padding:24px;
     }
     h1{font-size:2rem; margin:0 0 6px;}
-    p{color:var(--paper-dim); margin:0 0 28px; max-width:34ch;}
+    p{color:var(--paper-dim); margin:0 0 20px; max-width:34ch;}
 
     /* --- Pantalla de carga / error (antes de saber qué evento es) --- */
     .state-msg{color:var(--paper-dim); font-size:14px; max-width:30ch; line-height:1.6;}
     .state-msg.error{color:#d9694f;}
+
+    /* --- Selector de modo: foto o mensaje de voz --- */
+    .mode-switch{display:flex; gap:8px; width:min(320px, 84vw); margin:0 0 20px;}
+    .mode-btn{
+      flex:1; font-size:12.5px; font-weight:600; padding:10px 6px; border-radius:999px;
+      border:1px solid var(--line-strong); background:transparent; color:var(--paper-dim);
+    }
+    .mode-btn.active{background:var(--amber); border-color:var(--amber); color:var(--darkroom);}
 
     .frame-card{margin-bottom:22px;}
     .frame-card.polaroid-card{
@@ -52,14 +60,28 @@
     }
 
     button, textarea, input{font-family:inherit; cursor:pointer;}
-    .shutter-btn{
+    .shutter-btn, .record-btn{
       width:84px; height:84px; border-radius:50%;
       background:radial-gradient(circle at 35% 30%, var(--amber-bright), var(--amber) 65%);
       border:4px solid var(--darkroom-2); display:flex; align-items:center; justify-content:center;
+      margin:0 auto;
     }
-    .shutter-btn svg{width:30px; height:30px;}
+    .shutter-btn svg, .record-btn svg{width:30px; height:30px;}
     .shutter-btn:disabled{opacity:0.5;}
     input[type="file"]{display:none;}
+
+    .record-btn.recording{
+      background:radial-gradient(circle at 35% 30%, #ff8a7a, #d9694f 65%);
+      animation:pulse-rec 1.1s ease-in-out infinite;
+    }
+    @keyframes pulse-rec{
+      0%,100%{box-shadow:0 0 0 0 rgba(217,105,79,0.5);}
+      50%{box-shadow:0 0 0 10px rgba(217,105,79,0);}
+    }
+    .record-timer{margin-top:14px; font-size:14px; color:var(--paper-dim);}
+
+    .voice-preview{width:min(320px, 84vw); margin:18px auto 0; text-align:left;}
+    .voice-preview audio{width:100%; margin-bottom:14px;}
 
     /* --- Panel de detalles (nombre + mensaje) antes de confirmar la subida --- */
     .details-panel{
@@ -103,31 +125,62 @@
   <!-- La cámara solo aparece una vez que sabemos que el evento existe y está activo -->
   <div id="cameraUI" hidden>
     <h1>Revelado 📸</h1>
-    <p>Toca el obturador y tu foto entra directo al álbum.</p>
 
-    <div class="frame-card" id="frameCard">
-      <div class="frame" id="frame"><div class="placeholder">Aquí aparecerá tu foto</div></div>
+    <div class="mode-switch" id="modeSwitch">
+      <button type="button" class="mode-btn active" id="modePhotoBtn">📷 Foto</button>
+      <button type="button" class="mode-btn" id="modeVoiceBtn">🎤 Mensaje de voz</button>
     </div>
 
-    <div class="details-panel" id="detailsPanel" hidden>
-      <div class="field">
-        <label for="guestName">Tu nombre (opcional)</label>
-        <input type="text" id="guestName" placeholder="¿Cómo te llamas?" maxlength="60">
+    <!-- ===== Modo foto ===== -->
+    <div id="photoMode">
+      <p>Toca el obturador y tu foto entra directo al álbum.</p>
+
+      <div class="frame-card" id="frameCard">
+        <div class="frame" id="frame"><div class="placeholder">Aquí aparecerá tu foto</div></div>
       </div>
-      <div class="field">
-        <label for="caption">Mensaje (opcional)</label>
-        <textarea id="caption" placeholder="Escribe algo lindo…" maxlength="200" rows="2"></textarea>
+
+      <div class="details-panel" id="detailsPanel" hidden>
+        <div class="field">
+          <label for="guestName">Tu nombre (opcional)</label>
+          <input type="text" id="guestName" placeholder="¿Cómo te llamas?" maxlength="60">
+        </div>
+        <div class="field">
+          <label for="caption">Mensaje (opcional)</label>
+          <textarea id="caption" placeholder="Escribe algo lindo…" maxlength="200" rows="2"></textarea>
+        </div>
+        <div class="details-actions">
+          <button type="button" class="btn-secondary" id="retakeBtn">Tomar otra</button>
+          <button type="button" class="btn-upload" id="confirmUploadBtn">Subir foto</button>
+        </div>
       </div>
-      <div class="details-actions">
-        <button type="button" class="btn-secondary" id="retakeBtn">Tomar otra</button>
-        <button type="button" class="btn-upload" id="confirmUploadBtn">Subir foto</button>
-      </div>
+
+      <button class="shutter-btn" id="shutterBtn" aria-label="Tomar foto">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#150f0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path><circle cx="12" cy="13" r="3.4"></circle></svg>
+      </button>
+      <input type="file" id="cameraInput" accept="image/*" capture="environment">
     </div>
 
-    <button class="shutter-btn" id="shutterBtn" aria-label="Tomar foto">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#150f0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path><circle cx="12" cy="13" r="3.4"></circle></svg>
-    </button>
-    <input type="file" id="cameraInput" accept="image/*" capture="environment">
+    <!-- ===== Modo mensaje de voz ===== -->
+    <div id="voiceMode" hidden>
+      <p>Deja un mensaje de voz de hasta 15 segundos para los festejados.</p>
+
+      <button class="record-btn" id="recordBtn" aria-label="Grabar mensaje de voz">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#150f0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"></path><path d="M19 11a7 7 0 0 1-14 0"></path><line x1="12" y1="18" x2="12" y2="22"></line></svg>
+      </button>
+      <div class="record-timer" id="recordTimer" hidden>0:00 / 0:15</div>
+
+      <div class="voice-preview" id="voicePreview" hidden>
+        <audio id="voiceAudio" controls></audio>
+        <div class="field">
+          <label for="voiceGuestName">Tu nombre (opcional)</label>
+          <input type="text" id="voiceGuestName" placeholder="¿Cómo te llamas?" maxlength="60">
+        </div>
+        <div class="details-actions">
+          <button type="button" class="btn-secondary" id="voiceRetakeBtn">Grabar de nuevo</button>
+          <button type="button" class="btn-upload" id="voiceSendBtn">Enviar mensaje</button>
+        </div>
+      </div>
+    </div>
 
     <div class="status" id="status"></div>
   </div>
@@ -152,6 +205,18 @@
     const captionInput = document.getElementById('caption');
     const retakeBtn = document.getElementById('retakeBtn');
     const confirmUploadBtn = document.getElementById('confirmUploadBtn');
+
+    const modePhotoBtn = document.getElementById('modePhotoBtn');
+    const modeVoiceBtn = document.getElementById('modeVoiceBtn');
+    const photoMode = document.getElementById('photoMode');
+    const voiceMode = document.getElementById('voiceMode');
+    const recordBtn = document.getElementById('recordBtn');
+    const recordTimer = document.getElementById('recordTimer');
+    const voicePreview = document.getElementById('voicePreview');
+    const voiceAudio = document.getElementById('voiceAudio');
+    const voiceGuestName = document.getElementById('voiceGuestName');
+    const voiceRetakeBtn = document.getElementById('voiceRetakeBtn');
+    const voiceSendBtn = document.getElementById('voiceSendBtn');
 
     function setStatus(text, kind) {
       statusEl.textContent = text || '';
@@ -190,17 +255,32 @@
       document.getElementById('frameCard').classList.toggle('polaroid-card', currentEvent.filterClass === 'filter-polaroid');
       document.getElementById('frame').classList.toggle('vintage-glow', currentEvent.filterClass === 'filter-vintage');
 
-      // si ya puso su nombre en una foto anterior de esta visita, lo recordamos
+      // si ya puso su nombre en una foto o mensaje anterior de esta visita, lo recordamos
       try {
         const savedName = localStorage.getItem('revelado_guest_name');
-        if (savedName) guestNameInput.value = savedName;
+        if (savedName) {
+          guestNameInput.value = savedName;
+          voiceGuestName.value = savedName;
+        }
       } catch (e) { /* si el navegador bloquea localStorage, no pasa nada, solo no se recuerda */ }
 
       stateScreen.hidden = true;
       cameraUI.hidden = false;
     }
 
-    // --- 4) Achicar la foto antes de subirla ---------------------------
+    // --- 4) Selector de modo: foto o mensaje de voz ---------------------
+    function setMode(mode) {
+      const isVoice = mode === 'voice';
+      photoMode.hidden = isVoice;
+      voiceMode.hidden = !isVoice;
+      modePhotoBtn.classList.toggle('active', !isVoice);
+      modeVoiceBtn.classList.toggle('active', isVoice);
+      setStatus('');
+    }
+    modePhotoBtn.addEventListener('click', () => setMode('photo'));
+    modeVoiceBtn.addEventListener('click', () => setMode('voice'));
+
+    // --- 5) Achicar la foto antes de subirla ---------------------------
     function compress(file) {
       return new Promise((resolve, reject) => {
         const maxDim = 1200;
@@ -227,7 +307,7 @@
       });
     }
 
-    // --- 5) El flujo: foto -> vista previa + nombre/mensaje -> confirmar -> subir
+    // --- 6) El flujo de foto: foto -> vista previa + nombre/mensaje -> confirmar -> subir
     let pendingBlob = null;
 
     shutterBtn.addEventListener('click', () => cameraInput.click());
@@ -312,6 +392,135 @@
         retakeBtn.disabled = false;
         confirmUploadBtn.textContent = 'Subir foto';
         shutterBtn.disabled = false;
+      }
+    });
+
+    // --- 7) El flujo de mensaje de voz: grabar (máx 15s) -> vista previa + nombre -> enviar
+    const MAX_MS = 15000;
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let recordedBlob = null;
+    let recordStartTime = 0;
+    let recordTimerInterval = null;
+    let recordStopTimeout = null;
+
+    function pickMimeType() {
+      const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+      if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return '';
+      for (const c of candidates) {
+        if (MediaRecorder.isTypeSupported(c)) return c;
+      }
+      return '';
+    }
+
+    function extFor(mime) {
+      if (!mime) return 'webm';
+      if (mime.includes('mp4')) return 'm4a';
+      if (mime.includes('ogg')) return 'ogg';
+      return 'webm';
+    }
+
+    function formatTime(ms) {
+      const s = Math.min(15, Math.floor(ms / 1000));
+      return '0:' + String(s).padStart(2, '0');
+    }
+
+    function resetVoiceUI() {
+      recordedBlob = null;
+      voiceAudio.src = '';
+      voicePreview.hidden = true;
+      recordBtn.hidden = false;
+      recordBtn.classList.remove('recording');
+      recordTimer.hidden = true;
+    }
+
+    async function startRecording() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+        setStatus('Tu navegador no permite grabar audio aquí.', 'err');
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mimeType = pickMimeType();
+        mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+        recordedChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+          stream.getTracks().forEach(t => t.stop());
+          clearInterval(recordTimerInterval);
+          clearTimeout(recordStopTimeout);
+          recordedBlob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || mimeType || 'audio/webm' });
+          voiceAudio.src = URL.createObjectURL(recordedBlob);
+          recordBtn.hidden = true;
+          recordBtn.classList.remove('recording');
+          recordTimer.hidden = true;
+          voicePreview.hidden = false;
+        };
+
+        mediaRecorder.start();
+        recordStartTime = Date.now();
+        recordBtn.classList.add('recording');
+        recordTimer.hidden = false;
+        recordTimer.textContent = '0:00 / 0:15';
+        recordTimerInterval = setInterval(() => {
+          recordTimer.textContent = formatTime(Date.now() - recordStartTime) + ' / 0:15';
+        }, 200);
+        recordStopTimeout = setTimeout(() => {
+          if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+        }, MAX_MS);
+      } catch (err) {
+        console.error(err);
+        setStatus('No se pudo acceder al micrófono: ' + (err.message || 'revisa los permisos'), 'err');
+      }
+    }
+
+    recordBtn.addEventListener('click', () => {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+      } else {
+        startRecording();
+      }
+    });
+
+    voiceRetakeBtn.addEventListener('click', resetVoiceUI);
+
+    voiceSendBtn.addEventListener('click', async () => {
+      if (!recordedBlob || !currentEvent) return;
+      const guestName = voiceGuestName.value.trim();
+
+      voiceSendBtn.disabled = true;
+      voiceRetakeBtn.disabled = true;
+      voiceSendBtn.textContent = 'Enviando…';
+      setStatus('Enviando mensaje…');
+
+      try {
+        const ext = extFor(recordedBlob.type);
+        const path = currentEvent.id + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+
+        const { error: uploadError } = await db.storage.from('audios').upload(path, recordedBlob, { contentType: recordedBlob.type || 'audio/webm' });
+        if (uploadError) throw uploadError;
+
+        const { data: pub } = db.storage.from('audios').getPublicUrl(path);
+
+        const { error: insertError } = await db.from('voice_messages').insert({
+          event_id: currentEvent.id,
+          audio_url: pub.publicUrl,
+          guest_name: guestName || null
+        });
+        if (insertError) throw insertError;
+
+        try { if (guestName) localStorage.setItem('revelado_guest_name', guestName); } catch (e) { /* ignorar */ }
+
+        setStatus('¡Mensaje enviado! Gracias 💛', 'ok');
+        resetVoiceUI();
+      } catch (err) {
+        console.error(err);
+        setStatus('No se pudo enviar: ' + (err.message || 'intenta de nuevo'), 'err');
+      } finally {
+        voiceSendBtn.disabled = false;
+        voiceRetakeBtn.disabled = false;
+        voiceSendBtn.textContent = 'Enviar mensaje';
       }
     });
 
