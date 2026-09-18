@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Confirma tu asistencia â Revelado</title>
+<title>Confirma tu asistencia — Revelado</title>
 
-<!-- Esta lÃ­nea trae la librerÃ­a de Supabase, lista para usar como "supabase.createClient(...)" -->
+<!-- Esta línea trae la librería de Supabase, lista para usar como "supabase.createClient(...)" -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
@@ -24,7 +24,7 @@ font-family:system-ui, sans-serif; padding:24px 20px 60px;
 .wrap{max-width:480px; margin:0 auto;}
 h1{font-size:1.6rem; margin:0 0 4px;}
 
-/* --- Pantalla de carga / error (antes de saber quÃ© evento es) --- */
+/* --- Pantalla de carga / error (antes de saber qué evento es) --- */
 .state-screen{text-align:center; padding-top:18vh;}
 .state-msg{color:var(--paper-dim); font-size:14px; max-width:30ch; margin:8px auto 0; line-height:1.6;}
 .state-msg.error{color:#d9694f;}
@@ -48,7 +48,7 @@ border:1px solid var(--line-strong); background:var(--darkroom); color:var(--pap
 }
 input:focus, textarea:focus{outline:2px solid var(--fixer); outline-offset:1px;}
 
-/* --- Selector Â¿Vienes? SÃ­ / No --- */
+/* --- Selector ¿Vienes? Sí / No --- */
 .attend-switch{display:flex; gap:8px;}
 .attend-btn{
 flex:1; font-size:13.5px; font-weight:600; padding:11px 6px; border-radius:999px;
@@ -64,7 +64,7 @@ color:var(--paper); font-size:16px; cursor:pointer;
 .stepper button:disabled{opacity:0.4; cursor:default;}
 .stepper span{font-size:15px; font-weight:600; min-width:2ch; text-align:center;}
 
-/* Los campos que solo aplican si sÃ­ va, se ocultan si dice que no */
+/* Los campos que solo aplican si sí va, se ocultan si dice que no */
 [hidden]{ display:none !important; }
 
 button[type="submit"]{
@@ -76,7 +76,7 @@ button[type="submit"]:disabled{opacity:0.6; cursor:default;}
 
 .form-err{color:#d9694f; font-size:12.5px; margin-top:14px; min-height:16px;}
 
-/* --- ConfirmaciÃ³n --- */
+/* --- Confirmación --- */
 .confirm-card{text-align:center;}
 .confirm-card .check{
 width:48px; height:48px; border-radius:50%; background:rgba(79,166,156,0.14); color:var(--fixer);
@@ -88,60 +88,60 @@ display:flex; align-items:center; justify-content:center; margin:0 auto 16px; fo
 <body>
 <div class="wrap">
 
-  <!-- Mientras se identifica el evento del link, o si el link no es vÃ¡lido -->
+  <!-- Mientras se identifica el evento del link, o si el link no es válido -->
   <div id="stateScreen" class="state-screen">
-    <h1>Revelado ð¸</h1>
-    <p class="state-msg" id="stateMsg">Cargando tu invitaciÃ³nâ¦</p>
+    <h1>Revelado 📸</h1>
+    <p class="state-msg" id="stateMsg">Cargando tu invitación…</p>
   </div>
 
-  <!-- El formulario solo aparece una vez que sabemos que el evento existe y estÃ¡ activo -->
+  <!-- El formulario solo aparece una vez que sabemos que el evento existe y está activo -->
   <div id="rsvpUI" hidden>
     <div class="event-header">
-      <div class="eyebrow">EstÃ¡s invitado a</div>
-      <h1 id="eventName">â</h1>
-      <p id="eventWhen">â</p>
-      <p id="eventWhere">â</p>
+      <div class="eyebrow">Estás invitado a</div>
+      <h1 id="eventName">—</h1>
+      <p id="eventWhen">—</p>
+      <p id="eventWhere">—</p>
     </div>
 
     <div class="card" id="formCard">
-      <p class="lead">Confirma tu asistencia â le ayuda mucho al organizador planear el evento.</p>
+      <p class="lead">Confirma tu asistencia — le ayuda mucho al organizador planear el evento.</p>
 
       <form id="rsvpForm">
         <div class="field">
           <label for="nombre">Tu nombre</label>
-          <input type="text" id="nombre" placeholder="Â¿CÃ³mo te llamas?" maxlength="80" required>
+          <input type="text" id="nombre" placeholder="¿Cómo te llamas?" maxlength="80" required>
         </div>
 
         <div class="field">
-          <label>Â¿Vienes?</label>
+          <label>¿Vienes?</label>
           <div class="attend-switch" id="attendSwitch">
-            <button type="button" class="attend-btn active" id="attendYesBtn">SÃ­, ahÃ­ estarÃ©</button>
-            <button type="button" class="attend-btn" id="attendNoBtn">No podrÃ© ir</button>
+            <button type="button" class="attend-btn active" id="attendYesBtn">Sí, ahí estaré</button>
+            <button type="button" class="attend-btn" id="attendNoBtn">No podré ir</button>
           </div>
         </div>
 
         <div id="attendYesFields">
           <div class="field">
-            <label>AcompaÃ±antes (sin contarte a ti)</label>
+            <label>Acompañantes (sin contarte a ti)</label>
             <div class="stepper">
-              <button type="button" id="decBtn" aria-label="Menos acompaÃ±antes">â</button>
+              <button type="button" id="decBtn" aria-label="Menos acompañantes">−</button>
               <span id="companionCount">0</span>
-              <button type="button" id="incBtn" aria-label="MÃ¡s acompaÃ±antes">+</button>
+              <button type="button" id="incBtn" aria-label="Más acompañantes">+</button>
             </div>
           </div>
 
           <div class="field">
-            <label for="restriccion">RestricciÃ³n alimenticia (opcional)</label>
-            <input type="text" id="restriccion" placeholder="Vegetariano, sin gluten, alergiasâ¦" maxlength="120">
+            <label for="restriccion">Restricción alimenticia (opcional)</label>
+            <input type="text" id="restriccion" placeholder="Vegetariano, sin gluten, alergias…" maxlength="120">
           </div>
         </div>
 
         <div class="field">
           <label for="mensaje">Mensaje para los organizadores (opcional)</label>
-          <textarea id="mensaje" placeholder="Escribe algo lindoâ¦" maxlength="200" rows="2"></textarea>
+          <textarea id="mensaje" placeholder="Escribe algo lindo…" maxlength="200" rows="2"></textarea>
         </div>
 
-        <button type="submit" id="submitBtn">Enviar confirmaciÃ³n</button>
+        <button type="submit" id="submitBtn">Enviar confirmación</button>
         <div class="form-err" id="formErr"></div>
       </form>
     </div>
@@ -149,21 +149,21 @@ display:flex; align-items:center; justify-content:center; margin:0 auto 16px; fo
 
   <!-- Pantalla de agradecimiento tras enviar -->
   <div class="card confirm-card" id="confirmCard" hidden>
-    <div class="check">â</div>
-    <h1 id="confirmTitle">Â¡Gracias!</h1>
+    <div class="check">✓</div>
+    <h1 id="confirmTitle">¡Gracias!</h1>
     <p id="confirmText"></p>
   </div>
 
 </div>
 
 <script>
-// --- 1) ConexiÃ³n con Supabase -------------------------------------
+// --- 1) Conexión con Supabase -------------------------------------
 const SUPABASE_URL = 'https://qhwxtgzqnztshmudabho.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFod3h0Z3pxbnp0c2htdWRhYmhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3OTI5NzQsImV4cCI6MjEwMzM2ODk3NH0.ufpYauUWbbbJrAPOTY3zA6vQ9DfsYBEFXVsZrtPV2YU';
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// --- 2) Elementos de la pÃ¡gina --------------------------------------
+// --- 2) Elementos de la página --------------------------------------
 const stateScreen = document.getElementById('stateScreen');
 const stateMsg = document.getElementById('stateMsg');
 const rsvpUI = document.getElementById('rsvpUI');
@@ -214,7 +214,7 @@ function formatFecha(iso) {
 async function loadEvent() {
   const slug = new URLSearchParams(window.location.search).get('e');
   if (!slug) {
-    showError('Este link no tiene un evento vÃ¡lido. Pide el link correcto a quien te invitÃ³.');
+    showError('Este link no tiene un evento válido. Pide el link correcto a quien te invitó.');
     return;
   }
 
@@ -224,11 +224,11 @@ async function loadEvent() {
     .single();
 
   if (error || !data) {
-    showError('No encontramos esa invitaciÃ³n. Pide el link correcto a quien te invitÃ³.');
+    showError('No encontramos esa invitación. Pide el link correcto a quien te invitó.');
     return;
   }
   if (data.status !== 'activo') {
-    showError('Esta invitaciÃ³n todavÃ­a no estÃ¡ activa.');
+    showError('Esta invitación todavía no está activa.');
     return;
   }
 
@@ -241,7 +241,7 @@ async function loadEvent() {
   rsvpUI.hidden = false;
 }
 
-// --- 4) Selector Â¿Vienes? SÃ­ / No ------------------------------------
+// --- 4) Selector ¿Vienes? Sí / No -----------------------------------
 let attending = true;
 
 function setAttending(value) {
@@ -253,7 +253,7 @@ function setAttending(value) {
 attendYesBtn.addEventListener('click', () => setAttending(true));
 attendNoBtn.addEventListener('click', () => setAttending(false));
 
-// --- 5) Contador de acompaÃ±antes ------------------------------------
+// --- 5) Contador de acompañantes ------------------------------------
 let companions = 0;
 function renderCompanions() {
   companionCountEl.textContent = String(companions);
@@ -263,7 +263,7 @@ decBtn.addEventListener('click', () => { if (companions > 0) { companions--; ren
 incBtn.addEventListener('click', () => { if (companions < 10) { companions++; renderCompanions(); } });
 renderCompanions();
 
-// --- 6) Enviar confirmaciÃ³n -----------------------------------------
+// --- 6) Enviar confirmación ------------------------------------------
 rsvpForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   formErr.textContent = '';
@@ -272,7 +272,7 @@ rsvpForm.addEventListener('submit', async (e) => {
   if (!nombre) return;
 
   submitBtn.disabled = true;
-  submitBtn.textContent = 'Enviandoâ¦';
+  submitBtn.textContent = 'Enviando…';
 
   try {
     const { error } = await db.from('rsvps').insert({
@@ -288,18 +288,18 @@ rsvpForm.addEventListener('submit', async (e) => {
     formCard.hidden = true;
     confirmCard.hidden = false;
     if (attending) {
-      confirmTitle.textContent = 'Â¡Gracias, ' + nombre + '!';
-      confirmText.textContent = 'Tu confirmaciÃ³n para "' + currentEvent.name + '" ya quedÃ³ registrada. Nos vemos ahÃ­.';
+      confirmTitle.textContent = '¡Gracias, ' + nombre + '!';
+      confirmText.textContent = 'Tu confirmación para "' + currentEvent.name + '" ya quedó registrada. Nos vemos ahí.';
     } else {
       confirmTitle.textContent = 'Gracias por avisar';
-      confirmText.textContent = 'Le avisamos al organizador que no podrÃ¡s acompaÃ±arnos en "' + currentEvent.name + '".';
+      confirmText.textContent = 'Le avisamos al organizador que no podrás acompañarnos en "' + currentEvent.name + '".';
     }
   } catch (err) {
     console.error(err);
-    formErr.textContent = 'No se pudo enviar tu confirmaciÃ³n: ' + describeError(err);
+    formErr.textContent = 'No se pudo enviar tu confirmación: ' + describeError(err);
   } finally {
     submitBtn.disabled = false;
-    submitBtn.textContent = 'Enviar confirmaciÃ³n';
+    submitBtn.textContent = 'Enviar confirmación';
   }
 });
 
