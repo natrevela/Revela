@@ -1,209 +1,209 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Revelado — Fotos de tu evento, reveladas al instante</title>
-  <meta name="description" content="Tus invitados escanean un QR y toman fotos con su propio celular, sin instalar nada. Todas las fotos aparecen al instante en un álbum en vivo.">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revelado — Fotos de tu evento, reveladas al instante</title>
+<meta name="description" content="Tus invitados escanean un QR y toman fotos con su propio celular, sin instalar nada. Todas las fotos aparecen al instante en un álbum en vivo.">
 
-  <style>
-    :root{
-      --darkroom:#150f0a; --darkroom-2:#221a12; --darkroom-3:#2c2117;
-      --paper:#f3e9d7; --paper-dim:#c2b498; --paper-faint:#8a7d65;
-      --amber:#e8823c; --amber-bright:#ffa858; --fixer:#4fa69c;
-      --line:rgba(243,233,215,0.14); --line-strong:rgba(243,233,215,0.26);
-      --shadow:0 14px 30px -16px rgba(0,0,0,0.7);
-    }
-    *,*::before,*::after{box-sizing:border-box;}
-    body{
-      margin:0; background:var(--darkroom); color:var(--paper);
-      font-family:system-ui, sans-serif; line-height:1.5;
-    }
-    a{color:inherit;}
-    .wrap{max-width:1040px; margin:0 auto; padding:0 20px;}
+<style>
+:root{
+--darkroom:#ffffff; --darkroom-2:#f7f0e4; --darkroom-3:#f0e6d4;
+--paper:#2a1d14; --paper-dim:#6b5847; --paper-faint:#8a7460;
+--amber:#c97c56; --amber-bright:#da9873; --fixer:#7e9172;
+--line:rgba(42,29,20,0.12); --line-strong:rgba(42,29,20,0.22);
+--shadow:0 14px 30px -16px rgba(42,29,20,0.16);
+}
+*,*::before,*::after{box-sizing:border-box;}
+body{
+margin:0; background:var(--darkroom); color:var(--paper);
+font-family:system-ui, sans-serif; line-height:1.5;
+}
+a{color:inherit;}
+.wrap{max-width:1040px; margin:0 auto; padding:0 20px;}
 
-    /* --- Nav --- */
-    nav.wrap{display:flex; align-items:center; justify-content:space-between; padding-top:22px; padding-bottom:22px;}
-    .logo{font-size:1.25rem; font-weight:700; letter-spacing:-0.01em;}
-    .nav-login{
-      font-size:13px; color:var(--paper-dim); text-decoration:none; border:1px solid var(--line-strong);
-      padding:7px 14px; border-radius:999px; white-space:nowrap;
-    }
-    .nav-login:hover{color:var(--paper); border-color:var(--paper-dim);}
+/* --- Nav --- */
+nav.wrap{display:flex; align-items:center; justify-content:space-between; padding-top:22px; padding-bottom:22px;}
+.logo{font-size:1.25rem; font-weight:700; letter-spacing:-0.01em;}
+.nav-login{
+font-size:13px; color:var(--paper-dim); text-decoration:none; border:1px solid var(--line-strong);
+padding:7px 14px; border-radius:999px; white-space:nowrap;
+}
+.nav-login:hover{color:var(--paper); border-color:var(--paper-dim);}
 
-    /* --- Hero --- */
-    .hero{padding:36px 0 56px; text-align:center;}
-    .hero h1{font-size:2.4rem; line-height:1.15; margin:0 0 16px; max-width:20ch; margin-left:auto; margin-right:auto;}
-    .hero h1 em{color:var(--amber-bright); font-style:normal;}
-    .hero p{color:var(--paper-dim); font-size:1.05rem; max-width:44ch; margin:0 auto 28px;}
-    .btn{
-      display:inline-flex; align-items:center; gap:8px; font-family:inherit; font-size:15px; font-weight:600;
-      text-decoration:none; cursor:pointer; border-radius:999px; padding:13px 26px; border:none;
-    }
-    .btn-primary{background:var(--amber); color:var(--darkroom);}
-    .btn-primary:hover{background:var(--amber-bright);}
-    .btn-ghost{background:transparent; color:var(--paper); border:1px solid var(--line-strong);}
-    .btn-ghost:hover{border-color:var(--paper-dim);}
+/* --- Hero --- */
+.hero{padding:36px 0 56px; text-align:center;}
+.hero h1{font-size:2.4rem; line-height:1.15; margin:0 0 16px; max-width:20ch; margin-left:auto; margin-right:auto;}
+.hero h1 em{color:var(--amber); font-style:normal;}
+.hero p{color:var(--paper-dim); font-size:1.05rem; max-width:44ch; margin:0 auto 28px;}
+.btn{
+display:inline-flex; align-items:center; gap:8px; font-family:inherit; font-size:15px; font-weight:600;
+text-decoration:none; cursor:pointer; border-radius:999px; padding:13px 26px; border:none;
+}
+.btn-primary{background:var(--amber); color:var(--paper);}
+.btn-primary:hover{background:var(--amber-bright);}
+.btn-ghost{background:transparent; color:var(--paper); border:1px solid var(--line-strong);}
+.btn-ghost:hover{border-color:var(--paper-dim);}
 
-    /* --- Cómo funciona --- */
-    .how{padding:20px 0 60px;}
-    .how h2, .pricing h2{text-align:center; font-size:1.6rem; margin:0 0 8px;}
-    .section-sub{text-align:center; color:var(--paper-dim); font-size:14.5px; margin:0 0 36px;}
-    .steps{display:grid; gap:18px; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));}
-    .step{
-      background:var(--darkroom-2); border:1px solid var(--line); border-radius:14px; padding:22px 20px;
-    }
-    .step-num{
-      width:30px; height:30px; border-radius:50%; background:rgba(232,130,60,0.14); color:var(--amber-bright);
-      display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; margin-bottom:14px;
-    }
-    .step h3{font-size:1rem; margin:0 0 6px;}
-    .step p{color:var(--paper-dim); font-size:13.5px; margin:0;}
+/* --- Cómo funciona --- */
+.how{padding:20px 0 60px;}
+.how h2, .pricing h2{text-align:center; font-size:1.6rem; margin:0 0 8px;}
+.section-sub{text-align:center; color:var(--paper-dim); font-size:14.5px; margin:0 0 36px;}
+.steps{display:grid; gap:18px; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));}
+.step{
+background:var(--darkroom-2); border:1px solid var(--line); border-radius:14px; padding:22px 20px;
+}
+.step-num{
+width:30px; height:30px; border-radius:50%; background:rgba(201,124,86,0.16); color:var(--paper);
+display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; margin-bottom:14px;
+}
+.step h3{font-size:1rem; margin:0 0 6px;}
+.step p{color:var(--paper-dim); font-size:13.5px; margin:0;}
 
-    /* --- Formatos --- */
-    .formats{padding:10px 0 60px;}
-    .format-grid{display:grid; gap:16px; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));}
-    .format-chip{
-      background:var(--darkroom-2); border:1px solid var(--line); border-radius:12px; padding:18px 16px; text-align:center;
-    }
-    .format-chip .dot{width:34px; height:34px; border-radius:50%; margin:0 auto 10px;}
-    .format-chip.vintage .dot{background:linear-gradient(135deg, #d9a25c, #8a5a2e);}
-    .format-chip.bw .dot{background:linear-gradient(135deg, #eee, #333);}
-    .format-chip.polaroid .dot{background:#ffffff; border:1px solid var(--line-strong);}
-    .format-chip strong{display:block; font-size:14px; margin-bottom:4px;}
-    .format-chip span{color:var(--paper-dim); font-size:12.5px;}
+/* --- Formatos --- */
+.formats{padding:10px 0 60px;}
+.format-grid{display:grid; gap:16px; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));}
+.format-chip{
+background:var(--darkroom-2); border:1px solid var(--line); border-radius:12px; padding:18px 16px; text-align:center;
+}
+.format-chip .dot{width:34px; height:34px; border-radius:50%; margin:0 auto 10px;}
+.format-chip.vintage .dot{background:linear-gradient(135deg, #d9a25c, #8a5a2e);}
+.format-chip.bw .dot{background:linear-gradient(135deg, #eee, #333);}
+.format-chip.polaroid .dot{background:#ffffff; border:1px solid var(--line-strong);}
+.format-chip strong{display:block; font-size:14px; margin-bottom:4px;}
+.format-chip span{color:var(--paper-dim); font-size:12.5px;}
 
-    /* --- Precios --- */
-    .pricing{padding:10px 0 64px;}
-    .plans{display:grid; gap:18px; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));}
-    .plan{
-      background:var(--darkroom-2); border:1px solid var(--line); border-radius:16px; padding:26px 24px;
-      display:flex; flex-direction:column; gap:14px;
-    }
-    .plan.featured{border-color:rgba(232,130,60,0.55); box-shadow:var(--shadow);}
-    .plan-tag{
-      font-size:11px; letter-spacing:0.05em; text-transform:uppercase; color:var(--amber-bright);
-      font-weight:700;
-    }
-    .plan h3{font-size:1.25rem; margin:0;}
-    .plan .price{font-size:1.6rem; font-weight:700;}
-    .plan .price small{font-size:12px; font-weight:400; color:var(--paper-faint);}
-    .plan ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
-    .plan li{font-size:13.5px; color:var(--paper-dim); padding-left:20px; position:relative;}
-    .plan li::before{content:"✓"; position:absolute; left:0; color:var(--fixer);}
-    .plan .btn{justify-content:center; margin-top:6px;}
-    .price-pending{color:var(--paper-faint); font-size:11px; font-style:italic;}
+/* --- Precios --- */
+.pricing{padding:10px 0 64px;}
+.plans{display:grid; gap:18px; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));}
+.plan{
+background:var(--darkroom-2); border:1px solid var(--line); border-radius:16px; padding:26px 24px;
+display:flex; flex-direction:column; gap:14px;
+}
+.plan.featured{border-color:rgba(201,124,86,0.55); box-shadow:var(--shadow);}
+.plan-tag{
+font-size:11px; letter-spacing:0.05em; text-transform:uppercase; color:var(--amber);
+font-weight:700;
+}
+.plan h3{font-size:1.25rem; margin:0;}
+.plan .price{font-size:1.6rem; font-weight:700;}
+.plan .price small{font-size:12px; font-weight:400; color:var(--paper-faint);}
+.plan ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
+.plan li{font-size:13.5px; color:var(--paper-dim); padding-left:20px; position:relative;}
+.plan li::before{content:"✓"; position:absolute; left:0; color:var(--fixer);}
+.plan .btn{justify-content:center; margin-top:6px;}
+.price-pending{color:var(--paper-faint); font-size:11px; font-style:italic;}
 
-    /* --- Footer / contacto --- */
-    footer{border-top:1px solid var(--line); padding:32px 0 40px; text-align:center;}
-    footer p{color:var(--paper-faint); font-size:12.5px; margin:0 0 14px;}
-    footer .btn{font-size:13.5px; padding:10px 20px;}
-  </style>
+/* --- Footer / contacto --- */
+footer{border-top:1px solid var(--line); padding:32px 0 40px; text-align:center;}
+footer p{color:var(--paper-faint); font-size:12.5px; margin:0 0 14px;}
+footer .btn{font-size:13.5px; padding:10px 20px;}
+</style>
 </head>
 <body>
 
-  <nav class="wrap">
-    <div class="logo">Revelado 📸</div>
-    <a class="nav-login" href="/organizador/">Ya tengo un evento</a>
-  </nav>
+<nav class="wrap">
+<div class="logo"><svg width="24" height="21" viewBox="0 0 32 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:-5px; margin-right:6px; color:var(--amber);"><rect x="13" y="2" width="7" height="4" rx="1" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="6" width="26" height="18" rx="3" stroke="currentColor" stroke-width="1.7"/><circle cx="16" cy="16" r="7" stroke="currentColor" stroke-width="1.7"/><circle cx="16" cy="16" r="3.4" stroke="currentColor" stroke-width="1.4"/><circle cx="24" cy="10.5" r="1.3" fill="currentColor"/><rect x="6" y="3.2" width="4" height="2.2" rx="1" fill="currentColor"/></svg>Revelado</div>
+<a class="nav-login" href="/organizador/">Ya tengo un evento</a>
+</nav>
 
-  <header class="hero wrap">
-    <h1>Las fotos de tu evento, <em>reveladas</em> al momento</h1>
-    <p>Tus invitados escanean un QR y toman fotos con su propio celular — sin instalar nada. Todas las fotos caen solas en un álbum en vivo que puedes ver mientras el evento sigue pasando.</p>
-    <a class="btn btn-primary" href="https://wa.me/525534635250?text=Hola%2C%20quiero%20m%C3%A1s%20informaci%C3%B3n%20sobre%20Revelado%20para%20mi%20evento">Cotizar mi evento</a>
-  </header>
+<header class="hero wrap">
+<h1>Las fotos de tu evento, <em>reveladas</em> al momento</h1>
+<p>Tus invitados escanean un QR y toman fotos con su propio celular — sin instalar nada. Todas las fotos caen solas en un álbum en vivo que puedes ver mientras el evento sigue pasando.</p>
+<a class="btn btn-primary" href="https://wa.me/525534635250?text=Hola%2C%20quiero%20m%C3%A1s%20informaci%C3%B3n%20sobre%20Revelado%20para%20mi%20evento">Cotizar mi evento</a>
+</header>
 
-  <section class="how wrap">
-    <h2>Cómo funciona</h2>
-    <p class="section-sub">Nada que instalar, nada que descargar — ni para ti ni para tus invitados.</p>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <h3>Colocas el QR</h3>
-        <p>En las mesas, en el letrero de bienvenida, o donde tú quieras. Cada invitado lo escanea con la cámara de su celular.</p>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <h3>Toman la foto</h3>
-        <p>Se abre directo en el navegador del celular — sin apps, sin cuentas, sin fricción. Tocan el obturador y listo.</p>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <h3>Aparece en el álbum</h3>
-        <p>La foto entra al instante al álbum en vivo del evento, ya con el formato que elegiste, para que todos la vean pasar en tiempo real.</p>
-      </div>
-    </div>
-  </section>
+<section class="how wrap">
+<h2>Cómo funciona</h2>
+<p class="section-sub">Nada que instalar, nada que descargar — ni para ti ni para tus invitados.</p>
+<div class="steps">
+<div class="step">
+<div class="step-num">1</div>
+<h3>Colocas el QR</h3>
+<p>En las mesas, en el letrero de bienvenida, o donde tú quieras. Cada invitado lo escanea con la cámara de su celular.</p>
+</div>
+<div class="step">
+<div class="step-num">2</div>
+<h3>Toman la foto</h3>
+<p>Se abre directo en el navegador del celular — sin apps, sin cuentas, sin fricción. Tocan el obturador y listo.</p>
+</div>
+<div class="step">
+<div class="step-num">3</div>
+<h3>Aparece en el álbum</h3>
+<p>La foto entra al instante al álbum en vivo del evento, ya con el formato que elegiste, para que todos la vean pasar en tiempo real.</p>
+</div>
+</div>
+</section>
 
-  <section class="formats wrap">
-    <h2>Elige el formato de tu evento</h2>
-    <p class="section-sub">Cada evento tiene un estilo visual — así todas las fotos se ven parte de la misma sesión.</p>
-    <div class="format-grid">
-      <div class="format-chip vintage">
-        <div class="dot"></div>
-        <strong>Vintage</strong>
-        <span>Cálido y desvanecido, como una foto vieja</span>
-      </div>
-      <div class="format-chip bw">
-        <div class="dot"></div>
-        <strong>Blanco y negro</strong>
-        <span>Contraste profundo, mucho carácter</span>
-      </div>
-      <div class="format-chip polaroid">
-        <div class="dot"></div>
-        <strong>Polaroid</strong>
-        <span>Con su marco blanco clásico</span>
-      </div>
-    </div>
-  </section>
+<section class="formats wrap">
+<h2>Elige el formato de tu evento</h2>
+<p class="section-sub">Cada evento tiene un estilo visual — así todas las fotos se ven parte de la misma sesión.</p>
+<div class="format-grid">
+<div class="format-chip vintage">
+<div class="dot"></div>
+<strong>Vintage</strong>
+<span>Cálido y desvanecido, como una foto vieja</span>
+</div>
+<div class="format-chip bw">
+<div class="dot"></div>
+<strong>Blanco y negro</strong>
+<span>Contraste profundo, mucho carácter</span>
+</div>
+<div class="format-chip polaroid">
+<div class="dot"></div>
+<strong>Polaroid</strong>
+<span>Con su marco blanco clásico</span>
+</div>
+</div>
+</section>
 
-  <section class="pricing wrap" id="paquetes">
-    <h2>Paquetes</h2>
-    <p class="section-sub">Cada QR tiene un solo formato activo — si quieres más de uno disponible, es un paquete distinto.</p>
-    <div class="plans">
-      <div class="plan">
-        <div class="plan-tag">1 formato</div>
-        <h3>Paquete Sencillo</h3>
-        <div class="price">$[PENDIENTE] <small>MXN / evento</small></div>
-        <div class="price-pending">Precio por definir</div>
-        <ul>
-          <li>Un formato a elegir (vintage, blanco y negro o polaroid)</li>
-          <li>QR y álbum en vivo para tu evento</li>
-          <li>Fotos ilimitadas de tus invitados</li>
-        </ul>
-        <a class="btn btn-ghost" href="/registro/?paquete=sencillo">Quiero este paquete</a>
-      </div>
-      <div class="plan featured">
-        <div class="plan-tag">2 formatos</div>
-        <h3>Paquete Doble</h3>
-        <div class="price">$[PENDIENTE] <small>MXN / evento</small></div>
-        <div class="price-pending">Precio por definir</div>
-        <ul>
-          <li>Dos formatos a elegir</li>
-          <li>QR y álbum en vivo para tu evento</li>
-          <li>Fotos ilimitadas de tus invitados</li>
-        </ul>
-        <a class="btn btn-primary" href="/registro/?paquete=doble">Quiero este paquete</a>
-      </div>
-      <div class="plan">
-        <div class="plan-tag">3 formatos</div>
-        <h3>Paquete Completo</h3>
-        <div class="price">$[PENDIENTE] <small>MXN / evento</small></div>
-        <div class="price-pending">Precio por definir</div>
-        <ul>
-          <li>Los tres formatos disponibles</li>
-          <li>QR y álbum en vivo para tu evento</li>
-          <li>Fotos ilimitadas de tus invitados</li>
-        </ul>
-        <a class="btn btn-ghost" href="/registro/?paquete=completo">Quiero este paquete</a>
-      </div>
-    </div>
-  </section>
+<section class="pricing wrap" id="paquetes">
+<h2>Paquetes</h2>
+<p class="section-sub">Cada QR tiene un solo formato activo — si quieres más de uno disponible, es un paquete distinto.</p>
+<div class="plans">
+<div class="plan">
+<div class="plan-tag">1 formato</div>
+<h3>Paquete Sencillo</h3>
+<div class="price">$[PENDIENTE] <small>MXN / evento</small></div>
+<div class="price-pending">Precio por definir</div>
+<ul>
+<li>Un formato a elegir (vintage, blanco y negro o polaroid)</li>
+<li>QR y álbum en vivo para tu evento</li>
+<li>Fotos ilimitadas de tus invitados</li>
+</ul>
+<a class="btn btn-ghost" href="/registro/?paquete=sencillo">Quiero este paquete</a>
+</div>
+<div class="plan featured">
+<div class="plan-tag">2 formatos</div>
+<h3>Paquete Doble</h3>
+<div class="price">$[PENDIENTE] <small>MXN / evento</small></div>
+<div class="price-pending">Precio por definir</div>
+<ul>
+<li>Dos formatos a elegir</li>
+<li>QR y álbum en vivo para tu evento</li>
+<li>Fotos ilimitadas de tus invitados</li>
+</ul>
+<a class="btn btn-primary" href="/registro/?paquete=doble">Quiero este paquete</a>
+</div>
+<div class="plan">
+<div class="plan-tag">3 formatos</div>
+<h3>Paquete Completo</h3>
+<div class="price">$[PENDIENTE] <small>MXN / evento</small></div>
+<div class="price-pending">Precio por definir</div>
+<ul>
+<li>Los tres formatos disponibles</li>
+<li>QR y álbum en vivo para tu evento</li>
+<li>Fotos ilimitadas de tus invitados</li>
+</ul>
+<a class="btn btn-ghost" href="/registro/?paquete=completo">Quiero este paquete</a>
+</div>
+</div>
+</section>
 
-  <footer class="wrap">
-    <p>¿Tienes dudas sobre tu evento? Escríbenos directo.</p>
-    <a class="btn btn-primary" href="https://wa.me/525534635250?text=Hola%2C%20quiero%20m%C3%A1s%20informaci%C3%B3n%20sobre%20Revelado%20para%20mi%20evento">Hablar por WhatsApp</a>
-  </footer>
+<footer class="wrap">
+<p>¿Tienes dudas sobre tu evento? Escríbenos directo.</p>
+<a class="btn btn-primary" href="https://wa.me/525534635250?text=Hola%2C%20quiero%20m%C3%A1s%20informaci%C3%B3n%20sobre%20Revelado%20para%20mi%20evento">Hablar por WhatsApp</a>
+</footer>
 
 </body>
 </html>
