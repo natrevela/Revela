@@ -752,7 +752,7 @@ if (btn) { btn.disabled = true; btn.textContent = 'Generando PDF…'; }
 try {
   const jsPDF = window.jspdf.jsPDF;
   const pageW = ALBUM_PDF_PAGE.w, pageH = ALBUM_PDF_PAGE.h;
-  const doc = new jsPDF({ unit: 'in', format: [pageW, pageH] });
+  const doc = new jsPDF({ unit: 'in', format: [pageW, pageH], orientation: 'landscape' });
   const filterKey = currentEvent.filter || 'vintage';
   const area = albumContentArea();
   const floralBox = albumFloralBox();
@@ -781,7 +781,7 @@ try {
   // --- Páginas interiores: todas las fotos elegidas, en grupos de hasta 4 ---
   for (let start = 0; start < selected.length; start += 4) {
     const chunk = selected.slice(start, start + 4);
-    doc.addPage([pageW, pageH]);
+    doc.addPage([pageW, pageH], 'landscape');
     const cells = albumPageLayout(chunk.length, area);
     for (let i = 0; i < chunk.length; i++) {
       const photo = chunk[i];
