@@ -632,8 +632,10 @@ return { w: w, h: h, x: x, y: y };
 
 // --- Diseño del álbum en PDF, replicando el mockup de Canva de Nat -----
 // Página media carta horizontal (8.5 x 5.5 in). Portada única (1a foto +
-// nombre del evento) y luego todas las fotos elegidas en páginas interiores
-// de hasta 4 fotos cada una (1/2/3/4 según lo que quede al final).
+// nombre del evento) y luego todas las fotos elegidas en páginas interiores,
+// repitiendo el mismo ciclo de tipos de página de su diseño original: 2
+// fotos, 4 fotos, 1 foto, 3 fotos (1 grande + 2 chicas) — y así sucesivamente
+// hasta acomodar todas. Ya NO se agrupa todo en páginas de 4.
 const ALBUM_PDF_PAGE = { w: 8.5, h: 5.5 };
 const ALBUM_FRAME_COLOR = [0x36, 0x33, 0x3d]; // tomado del marco de su diseño
 const ALBUM_FLORAL_URL = 'album-assets/floral.png';
@@ -645,7 +647,7 @@ function albumFloralWidth() { return ALBUM_PDF_PAGE.h * ALBUM_FLORAL_ASPECT; }
 
 // Grosor del marco negro alrededor de cada foto, medido directamente de su
 // diseño original en Canva (una franja por cada tipo de página).
-const ALBUM_BORDER = { cover: 0.2, 1: 0.1, 2: 0.08, 3: 0.075, 4: 0.07 };
+const ALBUM_BORDER = { cover: 0.2, 1: 0.1, 2: 0.08, 3: 0.07, 4: 0.07 };
 // Márgenes (izquierda/derecha y arriba/abajo) de cada tipo de página,
 // medidos también de su diseño original — son los que hacen que las fotos
 // NO ocupen casi toda la página, como en su mockup de Canva.
@@ -653,11 +655,15 @@ const ALBUM_MARGIN = {
   cover: { h: 1.62, v: 0.70 },
   1: { h: 1.91, v: 1.19 },
   2: { h: 1.57, v: 0.76 },
-  3: { h: 1.57, v: 0.46 },
+  3: { h: 1.17, v: 0.55 },
   4: { h: 1.31, v: 0.46 },
 };
 // Espacio entre fotos de una misma página, también medido del original.
-const ALBUM_GAP = { 2: 0.69, 3: 0.16, 4: { h: 0.16, v: 0.14 } };
+const ALBUM_GAP = { 2: 0.69, 4: { h: 0.16, v: 0.14 } };
+// El orden en que se van repartiendo las fotos elegidas en páginas
+// interiores, igual que su diseño original: 2 fotos, luego 4, luego 1, luego
+// 3 (grande + 2 chicas) — y se repite hasta acomodar todas las que eligió.
+const ALBUM_LAYOUT_CYCLE = [2, 4, 1, 3];
 
 // El área de contenido (donde va la foto/cuadrícula) deja el hueco de la
 // flor de un lado u otro según `side`, para que la flor pueda alternar de
@@ -700,9 +706,21 @@ if (count === 2) {
   ];
 }
 if (count === 3) {
-  const gap = ALBUM_GAP[3];
-  const cw = (area.w - gap * 2) / 3;
-  return [0, 1, 2].map(i => ({ x: area.x + i * (cw + gap), y: area.y, w: cw, h: area.h, framed: true }));
+  // Diseño asimétrico de su original: 1 foto grande a la izquierda + 2
+  // chicas apiladas a la derecha (ya NO 3 columnas iguales — esa versión
+  // se elimina por instrucción suya). Proporciones medidas directo de su
+  // PDF de referencia.
+  const hGap = area.w * 0.0266;
+  const bigW = area.w * 0.6488;
+  const rightW = area.w - bigW - hGap;
+  const vGap = area.h * 0.0427;
+  const topH = area.h * 0.3193;
+  const bottomH = area.h - topH - vGap;
+  return [
+    { x: area.x, y: area.y, w: bigW, h: area.h, framed: true },
+    { x: area.x + bigW + hGap, y: area.y, w: rightW, h: topH, framed: true },
+    { x: area.x + bigW + hGap, y: area.y + topH + vGap, w: rightW, h: bottomH, framed: true },
+  ];
 }
 const gap = ALBUM_GAP[4];
 const cw = (area.w - gap.h) / 2;
@@ -821,9 +839,17 @@ try {
   }
   drawFloralForPage(coverSide);
 
-  // --- Páginas interiores: todas las fotos elegidas, en grupos de hasta 4 ---
-  for (let start = 0; start < selected.length; start += 4) {
-    const chunk = selected.slice(start, start + 4);
+  // --- Páginas interiores: todas las fotos elegidas, repitiendo el ciclo de
+  // tipos de página de su diseño original (2, 4, 1, 3) en vez de agrupar
+  // todo en páginas de 4. Si en algún punto ya no alcanzan fotos para
+  // completar el tipo que toca, esa página simplemente lleva las que queden.
+  let cycleIdx = 0;
+  for (let start = 0; start < selected.length; ) {
+    const want = ALBUM_LAYOUT_CYCLE[cycleIdx % ALBUM_LAYOUT_CYCLE.length];
+    const take = Math.min(want, selected.length - start);
+    const chunk = selected.slice(start, start + take);
+    start += take;
+    cycleIdx++;
     pageNum++;
     const side = sideForPage(pageNum);
     const area = albumContentArea(side, chunk.length);
