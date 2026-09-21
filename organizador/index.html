@@ -584,7 +584,8 @@ bw: 'grayscale(1) contrast(1.32) brightness(0.94)',
 polaroid: 'saturate(0.85) contrast(0.92) brightness(1.06) sepia(0.08)',
 };
 
-function loadImageAsDataUrl(url, filterKey) {
+function loadImageAsDataUrl(url, filterKey, format) {
+format = format || 'jpeg';
 return new Promise((resolve, reject) => {
 const img = new Image();
 img.crossOrigin = 'anonymous';
@@ -597,8 +598,8 @@ img.onload = () => {
     const cssFilter = PDF_FILTER_CSS[filterKey];
     if (cssFilter && 'filter' in ctx) ctx.filter = cssFilter;
     ctx.drawImage(img, 0, 0);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-    resolve({ dataUrl: dataUrl, w: img.naturalWidth, h: img.naturalHeight });
+    const dataUrl = format === 'png' ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.92);
+    resolve({ dataUrl: dataUrl, w: img.naturalWidth, h: img.naturalHeight, format: format });
   } catch (err) {
     reject(err);
   }
@@ -617,10 +618,115 @@ const y = (boxH - h) / 2;
 return { w: w, h: h, x: x, y: y };
 }
 
-// Tamaño de página del PDF: media carta horizontal (8.5 x 5.5 in — la mitad
-// de una hoja carta cortada por su lado largo). 2 fotos por página, una junto
-// a la otra; imprimiendo a doble cara, cada hoja física da 4 fotos.
+// Como fitBox, pero llena la caja por completo recortando el sobrante
+// (equivalente a CSS object-fit:cover) — así cada foto llena su marco sin
+// dejar franjas blancas, como en el diseño de Canva.
+function coverFit(imgW, imgH, boxW, boxH) {
+const scale = Math.max(boxW / imgW, boxH / imgH);
+const w = imgW * scale;
+const h = imgH * scale;
+const x = (boxW - w) / 2;
+const y = (boxH - h) / 2;
+return { w: w, h: h, x: x, y: y };
+}
+
+// --- Diseño del álbum en PDF, replicando el mockup de Canva de Nat -----
+// Página media carta horizontal (8.5 x 5.5 in). Portada única (1a foto +
+// nombre del evento) y luego todas las fotos elegidas en páginas interiores
+// de hasta 4 fotos cada una (1/2/3/4 según lo que quede al final).
 const ALBUM_PDF_PAGE = { w: 8.5, h: 5.5 };
+const ALBUM_FRAME_COLOR = [0x36, 0x33, 0x3d]; // tomado del marco de su diseño
+const ALBUM_FLORAL_URL = 'album-assets/floral.png';
+const ALBUM_FLORAL_ASPECT = 1116 / 280; // alto/ancho del recurso
+
+function albumContentArea() {
+const pageW = ALBUM_PDF_PAGE.w, pageH = ALBUM_PDF_PAGE.h;
+const margin = 0.3, floralW = 0.9, floralGap = 0.12;
+const x0 = margin;
+const x1 = pageW - margin - floralW - floralGap;
+return { x: x0, y: margin, w: x1 - x0, h: pageH - margin * 2 };
+}
+
+function albumFloralBox() {
+const pageW = ALBUM_PDF_PAGE.w, pageH = ALBUM_PDF_PAGE.h;
+const margin = 0.3, floralW = 0.9;
+const maxH = pageH - margin * 2;
+const h = Math.min(floralW * ALBUM_FLORAL_ASPECT, maxH);
+const w = h / ALBUM_FLORAL_ASPECT;
+return { x: pageW - margin - w, y: (pageH - h) / 2, w: w, h: h };
+}
+
+// Reparte 1, 2, 3 o 4 fotos dentro del área de contenido de una página.
+function albumPageLayout(count, area) {
+const gap = 0.12;
+if (count <= 1) {
+  return [{ x: area.x, y: area.y, w: area.w, h: area.h, framed: true }];
+}
+if (count === 2) {
+  const cw = (area.w - gap) / 2;
+  return [
+    { x: area.x, y: area.y, w: cw, h: area.h, framed: true },
+    { x: area.x + cw + gap, y: area.y, w: cw, h: area.h, framed: true },
+  ];
+}
+if (count === 3) {
+  const cw = (area.w - gap * 2) / 3;
+  return [0, 1, 2].map(i => ({ x: area.x + i * (cw + gap), y: area.y, w: cw, h: area.h, framed: false }));
+}
+const cw = (area.w - gap) / 2;
+const ch = (area.h - gap) / 2;
+return [
+  { x: area.x, y: area.y, w: cw, h: ch, framed: true },
+  { x: area.x + cw + gap, y: area.y, w: cw, h: ch, framed: true },
+  { x: area.x, y: area.y + ch + gap, w: cw, h: ch, framed: true },
+  { x: area.x + cw + gap, y: area.y + ch + gap, w: cw, h: ch, framed: true },
+];
+}
+
+// Dibuja una foto recortada (cover-fit) dentro de una caja, recortando lo
+// que sobre para que no queden franjas blancas.
+function drawPhotoInBox(doc, loaded, box) {
+const fit = coverFit(loaded.w, loaded.h, box.w, box.h);
+const type = loaded.format === 'png' ? 'PNG' : 'JPEG';
+doc.saveGraphicsState();
+doc.rect(box.x, box.y, box.w, box.h, null);
+doc.clip();
+doc.discardPath();
+doc.addImage(loaded.dataUrl, type, box.x + fit.x, box.y + fit.y, fit.w, fit.h);
+doc.restoreGraphicsState();
+}
+
+function drawFramedCell(doc, loaded, cell, borderW) {
+doc.setFillColor(ALBUM_FRAME_COLOR[0], ALBUM_FRAME_COLOR[1], ALBUM_FRAME_COLOR[2]);
+doc.rect(cell.x, cell.y, cell.w, cell.h, 'F');
+const inner = { x: cell.x + borderW, y: cell.y + borderW, w: cell.w - borderW * 2, h: cell.h - borderW * 2 };
+drawPhotoInBox(doc, loaded, inner);
+}
+
+// El "washi tape" con el nombre del evento, sobre la portada.
+function drawAlbumTape(doc, photoCell, eventName) {
+const tapeW = Math.min(photoCell.w * 0.62, 3.2);
+const tapeH = 0.42;
+const tapeX = photoCell.x + (photoCell.w - tapeW) / 2;
+const tapeY = photoCell.y + photoCell.h - tapeH * 0.55;
+doc.setFillColor(242, 236, 225);
+doc.rect(tapeX, tapeY, tapeW, tapeH, 'F');
+
+const label = '“' + eventName + '”';
+doc.setFont('times', 'italic');
+let fontSize = 14;
+doc.setFontSize(fontSize);
+const maxTextWidth = tapeW - 0.25;
+const estWidth = doc.getTextWidth(label);
+if (estWidth > maxTextWidth) {
+  fontSize = Math.max(8, Math.floor(fontSize * maxTextWidth / estWidth));
+  doc.setFontSize(fontSize);
+}
+doc.setTextColor(40, 34, 26);
+doc.text(label, tapeX + tapeW / 2, tapeY + tapeH / 2 + fontSize / 200, { align: 'center' });
+doc.setFont('helvetica', 'normal');
+doc.setTextColor(0, 0, 0);
+}
 
 async function generateAlbumPDF() {
 const btn = document.getElementById('albumPdfBtn');
@@ -647,49 +753,50 @@ try {
   const jsPDF = window.jspdf.jsPDF;
   const pageW = ALBUM_PDF_PAGE.w, pageH = ALBUM_PDF_PAGE.h;
   const doc = new jsPDF({ unit: 'in', format: [pageW, pageH] });
-  const margin = 0.35;
-  const gap = 0.3;
-  const boxW = (pageW - margin * 2 - gap) / 2;
-  const boxH = pageH - margin * 2;
   const filterKey = currentEvent.filter || 'vintage';
-  const isPolaroid = filterKey === 'polaroid';
-  const framePad = 0.12;
-  const frameBottomPad = 0.4;
+  const area = albumContentArea();
+  const floralBox = albumFloralBox();
   let failedCount = 0;
 
-  for (let i = 0; i < selected.length; i++) {
-    const slot = i % 2;
-    if (i > 0 && slot === 0) doc.addPage([pageW, pageH]);
-    const boxX = margin + slot * (boxW + gap);
-    const photo = selected[i];
-    try {
-      const loaded = await loadImageAsDataUrl(photo.photo_url, filterKey);
-      if (isPolaroid) {
-        doc.setFillColor(255, 255, 255);
-        doc.rect(boxX, margin, boxW, boxH, 'F');
-        const innerW = boxW - framePad * 2;
-        const innerH = boxH - framePad - frameBottomPad;
-        const fit = fitBox(loaded.w, loaded.h, innerW, innerH);
-        doc.addImage(loaded.dataUrl, 'JPEG', boxX + framePad + fit.x, margin + framePad + fit.y, fit.w, fit.h);
-        if (photo.guest_name) {
-          doc.setFontSize(9);
-          doc.setTextColor(60, 50, 40);
-          doc.text(photo.guest_name, boxX + boxW / 2, margin + boxH - frameBottomPad / 2, { align: 'center' });
-          doc.setTextColor(0, 0, 0);
-        }
-      } else {
-        const fit = fitBox(loaded.w, loaded.h, boxW, boxH - 0.3);
-        doc.addImage(loaded.dataUrl, 'JPEG', boxX + fit.x, margin + fit.y, fit.w, fit.h);
-        if (photo.guest_name) {
-          doc.setFontSize(10);
-          doc.text(photo.guest_name, boxX + boxW / 2, margin + boxH - 0.12, { align: 'center' });
-        }
+  let floralLoaded = null;
+  try { floralLoaded = await loadImageAsDataUrl(ALBUM_FLORAL_URL, null, 'png'); } catch (err) { /* decorativo: si falla, seguimos sin flor */ }
+  const drawFloral = () => {
+    if (floralLoaded) doc.addImage(floralLoaded.dataUrl, 'PNG', floralBox.x, floralBox.y, floralBox.w, floralBox.h);
+  };
+
+  // --- Portada: la primera foto elegida (más antigua), con el nombre del evento ---
+  const cover = selected[0];
+  try {
+    const loaded = await loadImageAsDataUrl(cover.photo_url, filterKey);
+    const cell = { x: area.x, y: area.y, w: area.w, h: area.h };
+    drawFramedCell(doc, loaded, cell, 0.06);
+    drawAlbumTape(doc, cell, currentEvent.name || 'Nuestro evento');
+  } catch (err) {
+    failedCount++;
+    doc.setFontSize(10);
+    doc.text('No se pudo cargar la foto de portada', area.x + area.w / 2, area.y + area.h / 2, { align: 'center' });
+  }
+  drawFloral();
+
+  // --- Páginas interiores: todas las fotos elegidas, en grupos de hasta 4 ---
+  for (let start = 0; start < selected.length; start += 4) {
+    const chunk = selected.slice(start, start + 4);
+    doc.addPage([pageW, pageH]);
+    const cells = albumPageLayout(chunk.length, area);
+    for (let i = 0; i < chunk.length; i++) {
+      const photo = chunk[i];
+      const cell = cells[i];
+      try {
+        const loaded = await loadImageAsDataUrl(photo.photo_url, filterKey);
+        if (cell.framed) drawFramedCell(doc, loaded, cell, 0.05);
+        else drawPhotoInBox(doc, loaded, cell);
+      } catch (err) {
+        failedCount++;
+        doc.setFontSize(9);
+        doc.text('No se pudo cargar esta foto', cell.x + cell.w / 2, cell.y + cell.h / 2, { align: 'center' });
       }
-    } catch (err) {
-      failedCount++;
-      doc.setFontSize(10);
-      doc.text('No se pudo cargar esta foto', boxX + boxW / 2, margin + boxH / 2, { align: 'center' });
     }
+    drawFloral();
   }
 
   const tierKey = currentEvent.album_tier || DEFAULT_ALBUM_TIER;
