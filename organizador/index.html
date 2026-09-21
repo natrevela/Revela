@@ -576,7 +576,15 @@ await Promise.all(ops);
 }
 
 // --- Álbum: generar PDF para imprimir ---------------------------------
-function loadImageAsDataUrl(url) {
+// Mismos valores que las clases .filter-vintage / .filter-bw / .filter-polaroid
+// del CSS, para que la foto en el PDF se vea igual que en la galería.
+const PDF_FILTER_CSS = {
+vintage: 'sepia(0.18) saturate(0.8) contrast(0.78) brightness(1.16) hue-rotate(-4deg)',
+bw: 'grayscale(1) contrast(1.32) brightness(0.94)',
+polaroid: 'saturate(0.85) contrast(0.92) brightness(1.06) sepia(0.08)',
+};
+
+function loadImageAsDataUrl(url, filterKey) {
 return new Promise((resolve, reject) => {
 const img = new Image();
 img.crossOrigin = 'anonymous';
@@ -586,6 +594,8 @@ img.onload = () => {
     canvas.width = img.naturalWidth;
     canvas.height = img.naturalHeight;
     const ctx = canvas.getContext('2d');
+    const cssFilter = PDF_FILTER_CSS[filterKey];
+    if (cssFilter && 'filter' in ctx) ctx.filter = cssFilter;
     ctx.drawImage(img, 0, 0);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
     resolve({ dataUrl: dataUrl, w: img.naturalWidth, h: img.naturalHeight });
@@ -606,6 +616,11 @@ const x = (boxW - w) / 2;
 const y = (boxH - h) / 2;
 return { w: w, h: h, x: x, y: y };
 }
+
+// Tamaño de página del PDF: media carta horizontal (8.5 x 5.5 in — la mitad
+// de una hoja carta cortada por su lado largo). 2 fotos por página, una junto
+// a la otra; imprimiendo a doble cara, cada hoja física da 4 fotos.
+const ALBUM_PDF_PAGE = { w: 8.5, h: 5.5 };
 
 async function generateAlbumPDF() {
 const btn = document.getElementById('albumPdfBtn');
@@ -630,31 +645,50 @@ if (btn) { btn.disabled = true; btn.textContent = 'Generando PDF…'; }
 
 try {
   const jsPDF = window.jspdf.jsPDF;
-  const doc = new jsPDF({ unit: 'in', format: 'letter' });
-  const pageW = 8.5, pageH = 11;
-  const margin = 0.5;
-  const gap = 0.4;
-  const boxW = pageW - margin * 2;
-  const boxH = (pageH - margin * 2 - gap) / 2;
+  const pageW = ALBUM_PDF_PAGE.w, pageH = ALBUM_PDF_PAGE.h;
+  const doc = new jsPDF({ unit: 'in', format: [pageW, pageH] });
+  const margin = 0.35;
+  const gap = 0.3;
+  const boxW = (pageW - margin * 2 - gap) / 2;
+  const boxH = pageH - margin * 2;
+  const filterKey = currentEvent.filter || 'vintage';
+  const isPolaroid = filterKey === 'polaroid';
+  const framePad = 0.12;
+  const frameBottomPad = 0.4;
   let failedCount = 0;
 
   for (let i = 0; i < selected.length; i++) {
     const slot = i % 2;
-    if (i > 0 && slot === 0) doc.addPage();
-    const boxY = margin + slot * (boxH + gap);
+    if (i > 0 && slot === 0) doc.addPage([pageW, pageH]);
+    const boxX = margin + slot * (boxW + gap);
     const photo = selected[i];
     try {
-      const loaded = await loadImageAsDataUrl(photo.photo_url);
-      const fit = fitBox(loaded.w, loaded.h, boxW, boxH - 0.3);
-      doc.addImage(loaded.dataUrl, 'JPEG', margin + fit.x, boxY + fit.y, fit.w, fit.h);
-      if (photo.guest_name) {
-        doc.setFontSize(10);
-        doc.text(photo.guest_name, pageW / 2, boxY + boxH - 0.15, { align: 'center' });
+      const loaded = await loadImageAsDataUrl(photo.photo_url, filterKey);
+      if (isPolaroid) {
+        doc.setFillColor(255, 255, 255);
+        doc.rect(boxX, margin, boxW, boxH, 'F');
+        const innerW = boxW - framePad * 2;
+        const innerH = boxH - framePad - frameBottomPad;
+        const fit = fitBox(loaded.w, loaded.h, innerW, innerH);
+        doc.addImage(loaded.dataUrl, 'JPEG', boxX + framePad + fit.x, margin + framePad + fit.y, fit.w, fit.h);
+        if (photo.guest_name) {
+          doc.setFontSize(9);
+          doc.setTextColor(60, 50, 40);
+          doc.text(photo.guest_name, boxX + boxW / 2, margin + boxH - frameBottomPad / 2, { align: 'center' });
+          doc.setTextColor(0, 0, 0);
+        }
+      } else {
+        const fit = fitBox(loaded.w, loaded.h, boxW, boxH - 0.3);
+        doc.addImage(loaded.dataUrl, 'JPEG', boxX + fit.x, margin + fit.y, fit.w, fit.h);
+        if (photo.guest_name) {
+          doc.setFontSize(10);
+          doc.text(photo.guest_name, boxX + boxW / 2, margin + boxH - 0.12, { align: 'center' });
+        }
       }
     } catch (err) {
       failedCount++;
       doc.setFontSize(10);
-      doc.text('No se pudo cargar esta foto', pageW / 2, boxY + boxH / 2, { align: 'center' });
+      doc.text('No se pudo cargar esta foto', boxX + boxW / 2, margin + boxH / 2, { align: 'center' });
     }
   }
 
