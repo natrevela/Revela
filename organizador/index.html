@@ -637,21 +637,41 @@ return { w: w, h: h, x: x, y: y };
 const ALBUM_PDF_PAGE = { w: 8.5, h: 5.5 };
 const ALBUM_FRAME_COLOR = [0x36, 0x33, 0x3d]; // tomado del marco de su diseño
 const ALBUM_FLORAL_URL = 'album-assets/floral.png';
-const ALBUM_FLORAL_W = 0.9; // ancho de la ilustración floral, pegada al borde
-// Grosor del marco alrededor de cada foto: más grueso en la portada (foto
-// protagonista, como en su diseño) y más delgado mientras más fotos hay por
-// página — igual que en su ejemplo de Canva (ahí lo midió foto por foto).
-const ALBUM_BORDER = { cover: 0.2, 1: 0.1, 2: 0.08, 4: 0.07 };
+// Relación de aspecto real de la ilustración floral (280x1116px) — con esto
+// calculamos su ancho para que cubra la página de arriba a abajo SIN
+// recortarla ni deformarla, como pidió.
+const ALBUM_FLORAL_ASPECT = 280 / 1116;
+function albumFloralWidth() { return ALBUM_PDF_PAGE.h * ALBUM_FLORAL_ASPECT; }
+
+// Grosor del marco negro alrededor de cada foto, medido directamente de su
+// diseño original en Canva (una franja por cada tipo de página).
+const ALBUM_BORDER = { cover: 0.2, 1: 0.1, 2: 0.08, 3: 0.075, 4: 0.07 };
+// Márgenes (izquierda/derecha y arriba/abajo) de cada tipo de página,
+// medidos también de su diseño original — son los que hacen que las fotos
+// NO ocupen casi toda la página, como en su mockup de Canva.
+const ALBUM_MARGIN = {
+  cover: { h: 1.62, v: 0.70 },
+  1: { h: 1.91, v: 1.19 },
+  2: { h: 1.57, v: 0.76 },
+  3: { h: 1.57, v: 0.46 },
+  4: { h: 1.31, v: 0.46 },
+};
+// Espacio entre fotos de una misma página, también medido del original.
+const ALBUM_GAP = { 2: 0.69, 3: 0.16, 4: { h: 0.16, v: 0.14 } };
 
 // El área de contenido (donde va la foto/cuadrícula) deja el hueco de la
 // flor de un lado u otro según `side`, para que la flor pueda alternar de
-// borde sin encimarse con las fotos.
-function albumContentArea(side) {
+// borde sin encimarse con las fotos. Del lado de la flor, el margen se
+// agranda si hace falta para que la ilustración quepa completa (sin que se
+// corte), tal como pidió.
+function albumContentArea(side, layoutKey) {
 const pageW = ALBUM_PDF_PAGE.w, pageH = ALBUM_PDF_PAGE.h;
-const margin = 0.3, floralGap = 0.12;
-const x0 = side === 'left' ? ALBUM_FLORAL_W + floralGap : margin;
-const x1 = side === 'left' ? pageW - margin : pageW - ALBUM_FLORAL_W - floralGap;
-return { x: x0, y: margin, w: x1 - x0, h: pageH - margin * 2 };
+const m = ALBUM_MARGIN[layoutKey] || ALBUM_MARGIN[4];
+const floralGap = 0.12;
+const floralSide = Math.max(m.h, albumFloralWidth() + floralGap);
+const x0 = side === 'left' ? floralSide : m.h;
+const x1 = side === 'left' ? pageW - m.h : pageW - floralSide;
+return { x: x0, y: m.v, w: x1 - x0, h: pageH - m.v * 2 };
 }
 
 // La flor va pegada al borde de la página, cubriéndola de arriba a abajo por
@@ -660,17 +680,19 @@ return { x: x0, y: margin, w: x1 - x0, h: pageH - margin * 2 };
 // álbum al imprimir, alternando como en su ejemplo.
 function albumFloralBox(side) {
 const pageW = ALBUM_PDF_PAGE.w, pageH = ALBUM_PDF_PAGE.h;
-const x = side === 'left' ? 0 : (pageW - ALBUM_FLORAL_W);
-return { x: x, y: 0, w: ALBUM_FLORAL_W, h: pageH };
+const w = albumFloralWidth();
+const x = side === 'left' ? 0 : (pageW - w);
+return { x: x, y: 0, w: w, h: pageH };
 }
 
 // Reparte 1, 2, 3 o 4 fotos dentro del área de contenido de una página.
+// Todas las fotos llevan marco (framed: true) — igual que en el original.
 function albumPageLayout(count, area) {
-const gap = 0.12;
 if (count <= 1) {
   return [{ x: area.x, y: area.y, w: area.w, h: area.h, framed: true }];
 }
 if (count === 2) {
+  const gap = ALBUM_GAP[2];
   const cw = (area.w - gap) / 2;
   return [
     { x: area.x, y: area.y, w: cw, h: area.h, framed: true },
@@ -678,16 +700,18 @@ if (count === 2) {
   ];
 }
 if (count === 3) {
+  const gap = ALBUM_GAP[3];
   const cw = (area.w - gap * 2) / 3;
-  return [0, 1, 2].map(i => ({ x: area.x + i * (cw + gap), y: area.y, w: cw, h: area.h, framed: false }));
+  return [0, 1, 2].map(i => ({ x: area.x + i * (cw + gap), y: area.y, w: cw, h: area.h, framed: true }));
 }
-const cw = (area.w - gap) / 2;
-const ch = (area.h - gap) / 2;
+const gap = ALBUM_GAP[4];
+const cw = (area.w - gap.h) / 2;
+const ch = (area.h - gap.v) / 2;
 return [
   { x: area.x, y: area.y, w: cw, h: ch, framed: true },
-  { x: area.x + cw + gap, y: area.y, w: cw, h: ch, framed: true },
-  { x: area.x, y: area.y + ch + gap, w: cw, h: ch, framed: true },
-  { x: area.x + cw + gap, y: area.y + ch + gap, w: cw, h: ch, framed: true },
+  { x: area.x + cw + gap.h, y: area.y, w: cw, h: ch, framed: true },
+  { x: area.x, y: area.y + ch + gap.v, w: cw, h: ch, framed: true },
+  { x: area.x + cw + gap.h, y: area.y + ch + gap.v, w: cw, h: ch, framed: true },
 ];
 }
 
@@ -702,6 +726,14 @@ doc.clip();
 doc.discardPath();
 doc.addImage(loaded.dataUrl, type, box.x + fit.x, box.y + fit.y, fit.w, fit.h);
 doc.restoreGraphicsState();
+}
+
+// Dibuja la ilustración floral COMPLETA, sin recortar: la caja ya tiene
+// exactamente la misma proporción que la imagen (ver albumFloralBox), así
+// que se dibuja directo, de borde a borde, sin cover-fit ni clip.
+function drawFloral(doc, loaded, box) {
+const type = loaded.format === 'png' ? 'PNG' : 'JPEG';
+doc.addImage(loaded.dataUrl, type, box.x, box.y, box.w, box.h);
 }
 
 function drawFramedCell(doc, loaded, cell, borderW) {
@@ -769,13 +801,13 @@ try {
   let floralLoaded = null;
   try { floralLoaded = await loadImageAsDataUrl(ALBUM_FLORAL_URL, null, 'png'); } catch (err) { /* decorativo: si falla, seguimos sin flor */ }
   const drawFloralForPage = (side) => {
-    if (floralLoaded) drawPhotoInBox(doc, floralLoaded, albumFloralBox(side));
+    if (floralLoaded) drawFloral(doc, floralLoaded, albumFloralBox(side));
   };
 
   // --- Portada: la primera foto elegida (más antigua), con el nombre del evento ---
   // La flor va del lado derecho en la portada (página 1), y luego alterna.
   const coverSide = sideForPage(pageNum);
-  const coverArea = albumContentArea(coverSide);
+  const coverArea = albumContentArea(coverSide, 'cover');
   const cover = selected[0];
   try {
     const loaded = await loadImageAsDataUrl(cover.photo_url, filterKey);
@@ -794,7 +826,7 @@ try {
     const chunk = selected.slice(start, start + 4);
     pageNum++;
     const side = sideForPage(pageNum);
-    const area = albumContentArea(side);
+    const area = albumContentArea(side, chunk.length);
     doc.addPage([pageW, pageH], 'landscape');
     const cells = albumPageLayout(chunk.length, area);
     const borderW = ALBUM_BORDER[chunk.length] || ALBUM_BORDER[4];
