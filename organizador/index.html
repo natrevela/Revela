@@ -134,13 +134,41 @@ border:1px solid var(--line-strong); background:transparent; color:var(--paper);
 .empty{border:1px dashed var(--line-strong); border-radius:12px; padding:34px 20px; text-align:center; color:var(--paper-faint); font-size:14px;}
 .err{border:1px solid rgba(176,82,58,0.5); background:var(--darkroom-2); color:#f0b6a5; border-radius:10px; padding:12px 15px; font-size:13.5px; margin-bottom:18px;}
 
-/* --- Pestañas: Fotos / Mensajes de voz --- */
-.tab-switch{display:flex; gap:8px; margin-bottom:18px; border-bottom:1px solid var(--line); padding-bottom:14px;}
+/* --- Pestañas: Fotos / Mensajes de voz / Álbum --- */
+.tab-switch{display:flex; gap:8px; margin-bottom:18px; border-bottom:1px solid var(--line); padding-bottom:14px; flex-wrap:wrap;}
 .tab-btn{
 font-size:13px; font-weight:600; padding:9px 16px; border-radius:999px;
 border:1px solid var(--line-strong); background:transparent; color:var(--paper-dim);
 }
 .tab-btn.active{background:var(--amber); border-color:var(--amber); color:var(--paper);}
+
+/* --- Álbum: selección de fotos --- */
+.album-toolbar{display:flex; flex-wrap:wrap; align-items:center; gap:12px 16px; margin-bottom:16px;}
+.album-tier{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--paper-dim);}
+.album-tier select{
+font-family:inherit; font-size:12.5px; padding:7px 10px; border-radius:8px;
+border:1px solid var(--line-strong); background:var(--darkroom); color:var(--paper);
+}
+.album-count{font-size:12.5px; font-weight:700; color:var(--paper-dim);}
+.album-count.over{color:#b0523a;}
+.btn-surprise{
+font-size:12.5px; font-weight:600; padding:8px 14px; border-radius:999px; border:1px solid var(--line-strong);
+background:transparent; color:var(--fixer); margin-left:auto;
+}
+.btn-surprise:hover{border-color:var(--fixer);}
+.album-warning, .album-limit-msg{
+border:1px solid rgba(176,82,58,0.4); background:var(--darkroom-2); color:#8a4630;
+border-radius:10px; padding:10px 14px; font-size:12.5px; margin-bottom:16px;
+}
+.album-pick{position:relative; cursor:pointer;}
+.album-pick.picked{outline:2.5px solid var(--amber); outline-offset:2px;}
+.album-check{
+position:absolute; top:6px; right:6px; width:22px; height:22px; border-radius:50%;
+border:1.5px solid rgba(255,255,255,0.85); background:rgba(42,29,20,0.35); color:#fff;
+font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center;
+line-height:1; pointer-events:none;
+}
+.album-pick.picked .album-check{background:var(--amber); border-color:var(--amber);}
 
 /* --- Mensajes de voz --- */
 .msg-list{display:flex; flex-direction:column; gap:12px;}
@@ -302,10 +330,12 @@ puede ignorar "hidden" y dejar el elemento visible por error. */
 <div class="tab-switch" id="tabSwitch">
 <button type="button" class="tab-btn active" id="tabFotosBtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path><circle cx="12" cy="13" r="3.4"></circle></svg>Fotos</button>
 <button type="button" class="tab-btn" id="tabMensajesBtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"></path><path d="M19 11a7 7 0 0 1-14 0"></path><line x1="12" y1="18" x2="12" y2="22"></line></svg>Mensajes de voz</button>
+<button type="button" class="tab-btn" id="tabAlbumBtn" hidden><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>Álbum</button>
 </div>
 
 <div id="content"></div>
 <div id="voiceContent" hidden></div>
+<div id="albumContent" hidden></div>
 </div>
 
 <!-- Foto ampliada, con flechas para navegar -->
@@ -330,6 +360,17 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const FILTER_LABELS = { vintage: 'Película vintage', bw: 'Blanco y negro', polaroid: 'Polaroid suave' };
 const PACKAGE_LABELS = { sencillo: 'Sencillo (1 formato)', doble: 'Doble (2 formatos)', completo: 'Completo (3 formatos)' };
 
+// --- Álbum físico: tamaños (4 fotos por hoja, 2 al frente + 2 atrás) ----
+const ALBUM_TIERS = {
+  chico:   { label: 'Chico (10 hojas)',   cap: 40 },
+  mediano: { label: 'Mediano (15 hojas)', cap: 60 },
+  grande:  { label: 'Grande (20 hojas)',  cap: 80 },
+};
+const DEFAULT_ALBUM_TIER = 'chico';
+function albumTierCfg(tierKey) {
+  return ALBUM_TIERS[tierKey] || ALBUM_TIERS[DEFAULT_ALBUM_TIER];
+}
+
 const loginView = document.getElementById('loginView');
 const pendingView = document.getElementById('pendingView');
 const albumView = document.getElementById('albumView');
@@ -348,9 +389,11 @@ const pendingErr = document.getElementById('pendingErr');
 const countEl = document.getElementById('count');
 const contentEl = document.getElementById('content');
 const voiceContentEl = document.getElementById('voiceContent');
+const albumContentEl = document.getElementById('albumContent');
 const formatValueEl = document.getElementById('formatValue');
 const tabFotosBtn = document.getElementById('tabFotosBtn');
 const tabMensajesBtn = document.getElementById('tabMensajesBtn');
+const tabAlbumBtn = document.getElementById('tabAlbumBtn');
 
 function esc(s){
 return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -389,16 +432,22 @@ return '<div class="' + printClass + '" data-index="' + i + '"><span class="' + 
 }).join('') + '</div>';
 }
 
-// --- Pestañas: Fotos / Mensajes de voz ---------------------------------
+// --- Pestañas: Fotos / Mensajes de voz / Álbum -------------------------
 function setTab(tab) {
 const isVoice = tab === 'mensajes';
-contentEl.hidden = isVoice;
+const isAlbum = tab === 'album';
+const isFotos = !isVoice && !isAlbum;
+contentEl.hidden = !isFotos;
 voiceContentEl.hidden = !isVoice;
-tabFotosBtn.classList.toggle('active', !isVoice);
+albumContentEl.hidden = !isAlbum;
+tabFotosBtn.classList.toggle('active', isFotos);
 tabMensajesBtn.classList.toggle('active', isVoice);
+tabAlbumBtn.classList.toggle('active', isAlbum);
+if (isAlbum) renderAlbumTab();
 }
 tabFotosBtn.addEventListener('click', () => setTab('fotos'));
 tabMensajesBtn.addEventListener('click', () => setTab('mensajes'));
+tabAlbumBtn.addEventListener('click', () => setTab('album'));
 
 function renderVoiceMessages(messages) {
 if (messages.length === 0) {
@@ -424,6 +473,115 @@ return;
 }
 renderVoiceMessages(data);
 }
+
+// --- Álbum físico: elegir qué fotos van impresas -----------------------
+let albumLimitTimer = null;
+
+function flashAlbumLimit() {
+const el = document.getElementById('albumLimitMsg');
+if (!el) return;
+el.hidden = false;
+clearTimeout(albumLimitTimer);
+albumLimitTimer = setTimeout(() => { el.hidden = true; }, 2200);
+}
+
+function pickSurprisePhotos(photos, cap) {
+const seenGuests = new Set();
+const primary = [];
+const rest = [];
+photos.forEach(p => {
+const key = (p.guest_name || '').trim().toLowerCase();
+if (key && !seenGuests.has(key)) { seenGuests.add(key); primary.push(p); }
+else { rest.push(p); }
+});
+return primary.concat(rest).slice(0, cap).map(p => p.id);
+}
+
+function renderAlbumTab() {
+if (!currentEvent || currentEvent.package !== 'completo') return;
+const tierKey = currentEvent.album_tier || DEFAULT_ALBUM_TIER;
+const tierCfg = albumTierCfg(tierKey);
+const selectedCount = currentPhotos.filter(p => p.in_album).length;
+const overCap = selectedCount > tierCfg.cap;
+
+const tierOptionsHtml = Object.keys(ALBUM_TIERS).map(key => {
+const cfg = ALBUM_TIERS[key];
+return '<option value="' + key + '"' + (key === tierKey ? ' selected' : '') + '>' + esc(cfg.label) + '</option>';
+}).join('');
+
+const toolbarHtml = '<div class="album-toolbar">' +
+'<div class="album-tier"><label for="albumTierSelect">Tamaño del álbum</label>' +
+'<select id="albumTierSelect">' + tierOptionsHtml + '</select></div>' +
+'<div class="album-count' + (overCap ? ' over' : '') + '" id="albumCount">' + selectedCount + ' / ' + tierCfg.cap + ' fotos elegidas</div>' +
+'<button type="button" class="btn-surprise" id="albumSurpriseBtn">🎲 Sorpresa — elegir por mí</button>' +
+'</div>';
+
+const limitMsgHtml = '<div class="album-limit-msg" id="albumLimitMsg" hidden>Ya llegaste al máximo de este tamaño. Quita una foto o elige un tamaño más grande.</div>';
+
+const warningHtml = overCap
+? '<div class="album-warning">Tienes ' + selectedCount + ' fotos elegidas y el tamaño "' + esc(tierCfg.label) + '" permite ' + tierCfg.cap + '. Quita algunas o cambia a un tamaño más grande.</div>'
+: '';
+
+const gridHtml = currentPhotos.length === 0
+? '<div class="empty">Aún no hay fotos para elegir. En cuanto haya fotos en el álbum, aparecen aquí.</div>'
+: '<div class="grid">' + currentPhotos.map(p => {
+const isPicked = !!p.in_album;
+return '<div class="print album-pick' + (isPicked ? ' picked' : '') + '" data-photo-id="' + esc(p.id) + '">' +
+'<span class="shot"><img class="filter-' + esc(currentEvent.filter || 'vintage') + '" src="' + esc(p.photo_url) + '" alt="Foto" loading="lazy"></span>' +
+'<span class="album-check">' + (isPicked ? '✓' : '') + '</span>' +
+'</div>';
+}).join('') + '</div>';
+
+albumContentEl.innerHTML = toolbarHtml + limitMsgHtml + warningHtml + gridHtml;
+
+const tierSelect = document.getElementById('albumTierSelect');
+if (tierSelect) tierSelect.addEventListener('change', onAlbumTierChange);
+const surpriseBtn = document.getElementById('albumSurpriseBtn');
+if (surpriseBtn) surpriseBtn.addEventListener('click', onAlbumSurprise);
+}
+
+async function onAlbumTierChange(e) {
+const newTier = e.target.value;
+currentEvent.album_tier = newTier;
+renderAlbumTab();
+const { error } = await db.from('events').update({ album_tier: newTier }).eq('id', currentEvent.id);
+if (error) console.error('No se pudo guardar el tamaño del álbum:', error.message);
+}
+
+async function onAlbumSurprise() {
+const tierCfg = albumTierCfg(currentEvent.album_tier || DEFAULT_ALBUM_TIER);
+const chosenIds = new Set(pickSurprisePhotos(currentPhotos, tierCfg.cap));
+currentPhotos.forEach(p => { p.in_album = chosenIds.has(p.id); });
+renderAlbumTab();
+const idsIn = [...chosenIds];
+const idsOut = currentPhotos.filter(p => !chosenIds.has(p.id)).map(p => p.id);
+const ops = [];
+if (idsIn.length) ops.push(db.from('photos').update({ in_album: true }).in('id', idsIn));
+if (idsOut.length) ops.push(db.from('photos').update({ in_album: false }).in('id', idsOut));
+await Promise.all(ops);
+}
+
+albumContentEl.addEventListener('click', async (e) => {
+const card = e.target.closest('.album-pick');
+if (!card) return;
+const photoId = card.dataset.photoId;
+const photo = currentPhotos.find(p => p.id === photoId);
+if (!photo) return;
+const tierCfg = albumTierCfg(currentEvent.album_tier || DEFAULT_ALBUM_TIER);
+const selectedCount = currentPhotos.filter(p => p.in_album).length;
+if (!photo.in_album && selectedCount >= tierCfg.cap) {
+flashAlbumLimit();
+return;
+}
+const nextValue = !photo.in_album;
+photo.in_album = nextValue;
+renderAlbumTab();
+const { error } = await db.from('photos').update({ in_album: nextValue }).eq('id', photoId);
+if (error) {
+photo.in_album = !nextValue;
+renderAlbumTab();
+}
+});
 
 // --- Lightbox: ampliar una foto y navegar con flechas -----------------
 const lightbox = document.getElementById('lightbox');
@@ -508,6 +666,7 @@ countEl.textContent = '0';
 return;
 }
 render(data, currentEvent.filter || 'vintage');
+if (currentEvent.package === 'completo') renderAlbumTab();
 }
 
 function setupQr(slug) {
@@ -542,6 +701,7 @@ document.getElementById('eventDateText').textContent = fmtDate(eventRow.event_da
 document.getElementById('eventLocationText').textContent = eventRow.location || 'Por definir';
 formatValueEl.textContent = FILTER_LABELS[eventRow.filter] || FILTER_LABELS.vintage;
 setupQr(eventRow.slug);
+tabAlbumBtn.hidden = eventRow.package !== 'completo';
 
 loginView.hidden = true;
 pendingView.hidden = true;
@@ -583,7 +743,7 @@ if (!session) { showLogin(); return; }
 
 const { data: eventRow, error } = await db
 .from('events')
-.select('id, name, slug, event_date, location, package, status, filter')
+.select('id, name, slug, event_date, location, package, status, filter, album_tier')
 .eq('owner_id', session.user.id)
 .single();
 
