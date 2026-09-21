@@ -1,5 +1,4 @@
 <!doctype html>
-<!-- redeploy trigger: fix orientation landscape album pdf -->
 <html lang="es">
 <head>
 <meta charset="utf-8">
@@ -638,23 +637,31 @@ return { w: w, h: h, x: x, y: y };
 const ALBUM_PDF_PAGE = { w: 8.5, h: 5.5 };
 const ALBUM_FRAME_COLOR = [0x36, 0x33, 0x3d]; // tomado del marco de su diseño
 const ALBUM_FLORAL_URL = 'album-assets/floral.png';
-const ALBUM_FLORAL_ASPECT = 1116 / 280; // alto/ancho del recurso
+const ALBUM_FLORAL_W = 0.9; // ancho de la ilustración floral, pegada al borde
+// Grosor del marco alrededor de cada foto: más grueso en la portada (foto
+// protagonista, como en su diseño) y más delgado mientras más fotos hay por
+// página — igual que en su ejemplo de Canva (ahí lo midió foto por foto).
+const ALBUM_BORDER = { cover: 0.2, 1: 0.1, 2: 0.08, 4: 0.07 };
 
-function albumContentArea() {
+// El área de contenido (donde va la foto/cuadrícula) deja el hueco de la
+// flor de un lado u otro según `side`, para que la flor pueda alternar de
+// borde sin encimarse con las fotos.
+function albumContentArea(side) {
 const pageW = ALBUM_PDF_PAGE.w, pageH = ALBUM_PDF_PAGE.h;
-const margin = 0.3, floralW = 0.9, floralGap = 0.12;
-const x0 = margin;
-const x1 = pageW - margin - floralW - floralGap;
+const margin = 0.3, floralGap = 0.12;
+const x0 = side === 'left' ? ALBUM_FLORAL_W + floralGap : margin;
+const x1 = side === 'left' ? pageW - margin : pageW - ALBUM_FLORAL_W - floralGap;
 return { x: x0, y: margin, w: x1 - x0, h: pageH - margin * 2 };
 }
 
-function albumFloralBox() {
+// La flor va pegada al borde de la página, cubriéndola de arriba a abajo por
+// completo (sin franjas) — del lado derecho en páginas impares y del
+// izquierdo en las pares, para que no quede "cortada" por la unión del
+// álbum al imprimir, alternando como en su ejemplo.
+function albumFloralBox(side) {
 const pageW = ALBUM_PDF_PAGE.w, pageH = ALBUM_PDF_PAGE.h;
-const margin = 0.3, floralW = 0.9;
-const maxH = pageH - margin * 2;
-const h = Math.min(floralW * ALBUM_FLORAL_ASPECT, maxH);
-const w = h / ALBUM_FLORAL_ASPECT;
-return { x: pageW - margin - w, y: (pageH - h) / 2, w: w, h: h };
+const x = side === 'left' ? 0 : (pageW - ALBUM_FLORAL_W);
+return { x: x, y: 0, w: ALBUM_FLORAL_W, h: pageH };
 }
 
 // Reparte 1, 2, 3 o 4 fotos dentro del área de contenido de una página.
@@ -755,41 +762,48 @@ try {
   const pageW = ALBUM_PDF_PAGE.w, pageH = ALBUM_PDF_PAGE.h;
   const doc = new jsPDF({ unit: 'in', format: [pageW, pageH], orientation: 'landscape' });
   const filterKey = currentEvent.filter || 'vintage';
-  const area = albumContentArea();
-  const floralBox = albumFloralBox();
   let failedCount = 0;
+  let pageNum = 1;
+  const sideForPage = (n) => (n % 2 === 1 ? 'right' : 'left');
 
   let floralLoaded = null;
   try { floralLoaded = await loadImageAsDataUrl(ALBUM_FLORAL_URL, null, 'png'); } catch (err) { /* decorativo: si falla, seguimos sin flor */ }
-  const drawFloral = () => {
-    if (floralLoaded) doc.addImage(floralLoaded.dataUrl, 'PNG', floralBox.x, floralBox.y, floralBox.w, floralBox.h);
+  const drawFloralForPage = (side) => {
+    if (floralLoaded) drawPhotoInBox(doc, floralLoaded, albumFloralBox(side));
   };
 
   // --- Portada: la primera foto elegida (más antigua), con el nombre del evento ---
+  // La flor va del lado derecho en la portada (página 1), y luego alterna.
+  const coverSide = sideForPage(pageNum);
+  const coverArea = albumContentArea(coverSide);
   const cover = selected[0];
   try {
     const loaded = await loadImageAsDataUrl(cover.photo_url, filterKey);
-    const cell = { x: area.x, y: area.y, w: area.w, h: area.h };
-    drawFramedCell(doc, loaded, cell, 0.06);
+    const cell = { x: coverArea.x, y: coverArea.y, w: coverArea.w, h: coverArea.h };
+    drawFramedCell(doc, loaded, cell, ALBUM_BORDER.cover);
     drawAlbumTape(doc, cell, currentEvent.name || 'Nuestro evento');
   } catch (err) {
     failedCount++;
     doc.setFontSize(10);
-    doc.text('No se pudo cargar la foto de portada', area.x + area.w / 2, area.y + area.h / 2, { align: 'center' });
+    doc.text('No se pudo cargar la foto de portada', coverArea.x + coverArea.w / 2, coverArea.y + coverArea.h / 2, { align: 'center' });
   }
-  drawFloral();
+  drawFloralForPage(coverSide);
 
   // --- Páginas interiores: todas las fotos elegidas, en grupos de hasta 4 ---
   for (let start = 0; start < selected.length; start += 4) {
     const chunk = selected.slice(start, start + 4);
+    pageNum++;
+    const side = sideForPage(pageNum);
+    const area = albumContentArea(side);
     doc.addPage([pageW, pageH], 'landscape');
     const cells = albumPageLayout(chunk.length, area);
+    const borderW = ALBUM_BORDER[chunk.length] || ALBUM_BORDER[4];
     for (let i = 0; i < chunk.length; i++) {
       const photo = chunk[i];
       const cell = cells[i];
       try {
         const loaded = await loadImageAsDataUrl(photo.photo_url, filterKey);
-        if (cell.framed) drawFramedCell(doc, loaded, cell, 0.05);
+        if (cell.framed) drawFramedCell(doc, loaded, cell, borderW);
         else drawPhotoInBox(doc, loaded, cell);
       } catch (err) {
         failedCount++;
@@ -797,7 +811,7 @@ try {
         doc.text('No se pudo cargar esta foto', cell.x + cell.w / 2, cell.y + cell.h / 2, { align: 'center' });
       }
     }
-    drawFloral();
+    drawFloralForPage(side);
   }
 
   const tierKey = currentEvent.album_tier || DEFAULT_ALBUM_TIER;
