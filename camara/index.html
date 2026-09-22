@@ -118,6 +118,12 @@ margin-top:14px; font-size:12.5px; letter-spacing:0.04em; text-transform:upperca
 font-weight:600; color:var(--paper-dim);
 }
 .shots-left.empty{color:#b0523a;}
+.restart-demo{
+margin-top:12px; font-size:13px; font-weight:600; color:var(--paper);
+background:transparent; border:1px solid var(--line-strong); border-radius:999px;
+padding:9px 18px;
+}
+.restart-demo:hover{border-color:var(--paper-dim);}
 
 /* El rollo revelado que se le muestra al invitado al terminar la prueba */
 .roll-review{margin-top:8px;}
@@ -219,6 +225,10 @@ puede ignorar "hidden" y dejar el elemento visible por error. */
 <svg viewBox="0 0 24 24" fill="none" stroke="#2a1d14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path><circle cx="12" cy="13" r="3.4"></circle></svg>
 </button>
 <div class="shots-left" id="shotsLeft" hidden></div>
+<!-- Solo en la demo: permite volver a probar sin tener que borrar los datos
+del navegador. Cuando queramos limitarla a una prueba por celular, se quita
+este botón (y su lógica) y ya. -->
+<button type="button" class="restart-demo" id="restartDemoBtn" hidden>Volver a probar</button>
 
 <!-- El rollo revelado: al terminarse la prueba, le enseñamos sus fotos -->
 <div class="roll-review" id="rollReview" hidden>
@@ -283,6 +293,7 @@ const guestNameInput = document.getElementById('guestName');
 const captionInput = document.getElementById('caption');
 const frameCard = document.getElementById('frameCard');
 const photoHint = document.getElementById('photoHint');
+const restartDemoBtn = document.getElementById('restartDemoBtn');
 const rollReview = document.getElementById('rollReview');
 const lightbox = document.getElementById('lightbox');
 const lbStage = document.getElementById('lbStage');
@@ -445,6 +456,18 @@ else if (e.key === 'ArrowLeft') lbShow(lbIndex - 1);
 else if (e.key === 'ArrowRight') lbShow(lbIndex + 1);
 });
 
+// Volver a empezar la prueba: borra el conteo guardado en ESTE celular y
+// deja el rollo nuevo. Solo aplica a la demo.
+function restartDemo() {
+if (!currentEvent || !currentEvent.isDemo) return;
+try { localStorage.removeItem(shotsKey(currentEvent.id)); } catch (e) { /* ignorar */ }
+rollPhotos.length = 0;
+rollReview.hidden = true;
+lbClose();
+setStatus('');
+refreshShotsUI();
+}
+
 // Pinta el contador y apaga el obturador cuando ya se acabó el rollo.
 function refreshShotsUI() {
 if (!currentEvent) return;
@@ -454,6 +477,8 @@ shotsLeftEl.classList.toggle('empty', left === 0);
 if (left === 0) {
 shutterBtn.disabled = true;
 shutterBtn.hidden = true;
+// Ofrecer repetir la prueba solo en la demo, nunca en un evento de verdad.
+restartDemoBtn.hidden = !currentEvent.isDemo;
 if (currentEvent.isDemo) {
 // En la demo el final del rollo es el momento de contarle qué sigue.
 shotsLeftEl.textContent = 'Fin de la prueba';
@@ -467,6 +492,7 @@ revealRoll();
 shotsLeftEl.textContent = left === 1 ? 'Te queda 1 foto' : 'Te quedan ' + left + ' fotos';
 shutterBtn.disabled = false;
 shutterBtn.hidden = false;
+restartDemoBtn.hidden = true;
 rollReview.hidden = true;
 frameCard.hidden = false;
 photoHint.hidden = false;
@@ -527,6 +553,7 @@ modeVoiceBtn.classList.toggle('active', isVoice);
 setStatus('');
 if (!isVoice) refreshShotsUI();
 }
+restartDemoBtn.addEventListener('click', restartDemo);
 modePhotoBtn.addEventListener('click', () => setMode('photo'));
 modeVoiceBtn.addEventListener('click', () => setMode('voice'));
 
