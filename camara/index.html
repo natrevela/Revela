@@ -259,6 +259,8 @@ este botón (y su lógica) y ya. -->
 <svg viewBox="0 0 24 24" fill="none" stroke="#2a1d14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"></path><path d="M19 11a7 7 0 0 1-14 0"></path><line x1="12" y1="18" x2="12" y2="22"></line></svg>
 </button>
 <div class="record-timer" id="recordTimer" hidden>0:00 / 0:15</div>
+<div class="shots-left" id="voicesLeft" hidden></div>
+<button type="button" class="restart-demo" id="restartDemoVoiceBtn" hidden>Volver a probar</button>
 
 <div class="voice-preview" id="voicePreview" hidden>
 <audio id="voiceAudio" controls></audio>
@@ -335,6 +337,8 @@ const voiceAudio = document.getElementById('voiceAudio');
 const voiceGuestName = document.getElementById('voiceGuestName');
 const voiceRetakeBtn = document.getElementById('voiceRetakeBtn');
 const voiceSendBtn = document.getElementById('voiceSendBtn');
+const voicesLeftEl = document.getElementById('voicesLeft');
+const restartDemoVoiceBtn = document.getElementById('restartDemoVoiceBtn');
 const voiceSent = document.getElementById('voiceSent');
 const voiceSentTitle = document.getElementById('voiceSentTitle');
 const voiceSentList = document.getElementById('voiceSentList');
@@ -508,12 +512,21 @@ voiceSent.hidden = false;
 // deja el rollo nuevo. Solo aplica a la demo.
 function restartDemo() {
 if (!currentEvent || !currentEvent.isDemo) return;
-try { localStorage.removeItem(shotsKey(currentEvent.id)); } catch (e) { /* ignorar */ }
+// Se reinicia la prueba completa: el rollo de fotos y los mensajes de voz.
+try {
+localStorage.removeItem(shotsKey(currentEvent.id));
+localStorage.removeItem(voicesKey(currentEvent.id));
+} catch (e) { /* ignorar */ }
 rollPhotos.length = 0;
+sentVoices.length = 0;
 rollReview.hidden = true;
+voiceSent.hidden = true;
+voiceSentList.innerHTML = '';
 lbClose();
+resetVoiceUI();
 setStatus('');
 refreshShotsUI();
+refreshVoicesUI();
 }
 
 // Pinta el contador y apaga el obturador cuando ya se acabó el rollo.
@@ -571,6 +584,7 @@ currentEvent = {
 id: data.id,
 filterClass: 'filter-' + (data.filter || 'vintage'),
 photoLimit: photoLimitFor(slug),
+voiceLimit: voiceLimitFor(slug),
 isDemo: slug === DEMO_SLUG
 };
 
@@ -599,9 +613,11 @@ voiceMode.hidden = !isVoice;
 modePhotoBtn.classList.toggle('active', !isVoice);
 modeVoiceBtn.classList.toggle('active', isVoice);
 setStatus('');
-if (!isVoice) refreshShotsUI();
+if (isVoice) refreshVoicesUI();
+else refreshShotsUI();
 }
 restartDemoBtn.addEventListener('click', restartDemo);
+restartDemoVoiceBtn.addEventListener('click', restartDemo);
 modePhotoBtn.addEventListener('click', () => setMode('photo'));
 modeVoiceBtn.addEventListener('click', () => setMode('voice'));
 
@@ -739,6 +755,61 @@ let recordStopTimeout = null;
 //    es lo que más se nota.
 // 2) Sin bitrate explícito, el navegador graba con uno conservador. A 128 kbps
 //    se oye claramente mejor y 15 segundos siguen pesando poco (~240 KB).
+// Cuántos mensajes de voz puede dejar cada persona. Igual que con las fotos:
+// en un evento son 5 y en la demo solo 2, y el conteo vive en el propio
+// celular del invitado.
+const VOICE_LIMIT = 5;
+const DEMO_VOICE_LIMIT = 2;
+
+function voiceLimitFor(slug) {
+return slug === DEMO_SLUG ? DEMO_VOICE_LIMIT : VOICE_LIMIT;
+}
+
+function voicesKey(eventId) { return 'revelado_voices_' + eventId; }
+
+function voicesSent(eventId) {
+try {
+const n = parseInt(localStorage.getItem(voicesKey(eventId)), 10);
+return Number.isFinite(n) && n > 0 ? n : 0;
+} catch (e) { return 0; }
+}
+
+function voicesRemaining(eventId) {
+const limite = currentEvent && currentEvent.voiceLimit ? currentEvent.voiceLimit : VOICE_LIMIT;
+return Math.max(0, limite - voicesSent(eventId));
+}
+
+function registerVoice(eventId) {
+try { localStorage.setItem(voicesKey(eventId), String(voicesSent(eventId) + 1)); } catch (e) { /* ignorar */ }
+}
+
+// Pinta el contador de mensajes y apaga el micrófono cuando ya no quedan.
+function refreshVoicesUI() {
+if (!currentEvent) return;
+const left = voicesRemaining(currentEvent.id);
+voicesLeftEl.hidden = false;
+voicesLeftEl.classList.toggle('empty', left === 0);
+if (left === 0) {
+recordBtn.disabled = true;
+recordBtn.hidden = true;
+restartDemoVoiceBtn.hidden = !currentEvent.isDemo;
+if (currentEvent.isDemo) {
+voicesLeftEl.textContent = 'Fin de la prueba';
+setStatus('Así se siente. En tu evento cada invitado puede dejar ' + VOICE_LIMIT + ' mensajes.');
+} else {
+voicesLeftEl.textContent = 'Ya no te quedan mensajes';
+setStatus('Ya mandaste tus ' + currentEvent.voiceLimit + ' mensajes. Todavía puedes tomar fotos.');
+}
+} else {
+recordBtn.disabled = false;
+// Si está la vista previa abierta, el botón de grabar debe seguir oculto:
+// ese estado lo maneja el flujo de grabación, no nosotros.
+if (voicePreview.hidden) recordBtn.hidden = false;
+restartDemoVoiceBtn.hidden = true;
+voicesLeftEl.textContent = left === 1 ? 'Te queda 1 mensaje' : 'Te quedan ' + left + ' mensajes';
+}
+}
+
 const AUDIO_BITRATE = 128000;
 
 async function getMicStream() {
@@ -827,6 +898,7 @@ if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.M
 setStatus('Tu navegador no permite grabar audio aquí.', 'err');
 return;
 }
+if (currentEvent && voicesRemaining(currentEvent.id) === 0) { refreshVoicesUI(); return; }
 try {
 const stream = await getMicStream();
 const mimeType = pickMimeType();
@@ -912,9 +984,11 @@ try { if (guestName) localStorage.setItem('revelado_guest_name', guestName); } c
 // Nos lo guardamos para que pueda volver a escucharlo; ojo: tiene que ser
 // antes de resetVoiceUI(), que deja recordedBlob en null.
 sentVoices.push(URL.createObjectURL(recordedBlob));
+registerVoice(currentEvent.id);
 setStatus('¡Mensaje enviado! Gracias 💛', 'ok');
 resetVoiceUI();
 renderSentVoices();
+refreshVoicesUI();
 } catch (err) {
 console.error(err);
 setStatus('No se pudo enviar: ' + describeError(err), 'err');
