@@ -373,7 +373,7 @@ cameraUI.hidden = true;
 // empezar — no es un candado, es la regla del juego.
 // En un evento de verdad son 25 fotos; la demo de la página trae solo 5,
 // suficientes para probar cómo se siente sin regalar el evento completo.
-const PHOTO_LIMIT = 25;
+const PHOTO_LIMIT = 10;
 const DEMO_SLUG = 'demo';
 const DEMO_PHOTO_LIMIT = 5;
 const shotsLeftEl = document.getElementById('shotsLeft');
@@ -758,7 +758,7 @@ let recordStopTimeout = null;
 // Cuántos mensajes de voz puede dejar cada persona. Igual que con las fotos:
 // en un evento son 5 y en la demo solo 2, y el conteo vive en el propio
 // celular del invitado.
-const VOICE_LIMIT = 5;
+const VOICE_LIMIT = 3;
 const DEMO_VOICE_LIMIT = 2;
 
 function voiceLimitFor(slug) {
