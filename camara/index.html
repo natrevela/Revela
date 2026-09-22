@@ -109,6 +109,28 @@ margin-top:14px; font-size:12.5px; letter-spacing:0.04em; text-transform:upperca
 font-weight:600; color:var(--paper-dim);
 }
 .shots-left.empty{color:#b0523a;}
+
+/* El rollo revelado que se le muestra al invitado al terminar la prueba */
+.roll-review{margin-top:8px;}
+.roll-review h2{font-size:1.15rem; margin:0 0 6px;}
+.roll-review p{font-size:13px; color:var(--paper-dim); margin:0 0 16px;}
+.roll-grid{
+display:grid; grid-template-columns:repeat(auto-fit, minmax(88px, 1fr)); gap:10px; margin-bottom:20px;
+}
+.roll-grid .roll-shot{
+aspect-ratio:1; overflow:hidden; border-radius:8px; background:var(--darkroom-2);
+border:1px solid rgba(42,29,20,0.12);
+}
+.roll-grid .roll-shot.polaroid-shot{
+background:#fff; border-radius:3px; padding:5px 5px 14px;
+box-shadow:0 4px 12px -6px rgba(42,29,20,0.3);
+}
+.roll-grid img{width:100%; height:100%; object-fit:cover; display:block;}
+.roll-cta{
+display:inline-flex; align-items:center; justify-content:center;
+background:var(--amber); color:var(--paper); text-decoration:none;
+font-weight:600; font-size:14px; border-radius:999px; padding:12px 24px;
+}
 .status{margin-top:18px; font-size:13.5px; color:var(--paper-dim); min-height:20px;}
 .status.ok{color:var(--fixer);}
 .status.err{color:#b0523a;}
@@ -138,7 +160,7 @@ puede ignorar "hidden" y dejar el elemento visible por error. */
 
 <!-- ===== Modo foto ===== -->
 <div id="photoMode">
-<p>Toca el obturador y tu foto entra directo al álbum.</p>
+<p id="photoHint">Toca el obturador y tu foto entra directo al álbum.</p>
 
 <div class="frame-card" id="frameCard">
 <div class="frame" id="frame"><div class="placeholder">Aquí aparecerá tu foto</div></div>
@@ -154,7 +176,6 @@ puede ignorar "hidden" y dejar el elemento visible por error. */
 <textarea id="caption" placeholder="Escribe algo lindo…" maxlength="200" rows="2"></textarea>
 </div>
 <div class="details-actions">
-<button type="button" class="btn-secondary" id="retakeBtn">Tomar otra</button>
 <button type="button" class="btn-upload" id="confirmUploadBtn">Subir foto</button>
 </div>
 </div>
@@ -163,6 +184,14 @@ puede ignorar "hidden" y dejar el elemento visible por error. */
 <svg viewBox="0 0 24 24" fill="none" stroke="#2a1d14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path><circle cx="12" cy="13" r="3.4"></circle></svg>
 </button>
 <div class="shots-left" id="shotsLeft" hidden></div>
+
+<!-- El rollo revelado: al terminarse la prueba, le enseñamos sus fotos -->
+<div class="roll-review" id="rollReview" hidden>
+<h2 id="rollTitle">Tu rollo revelado</h2>
+<p id="rollSubtitle">Estas son tus fotos, ya con el formato del evento.</p>
+<div class="roll-grid" id="rollGrid"></div>
+<a class="roll-cta" href="/#paquetes">Ver paquetes para mi evento</a>
+</div>
 <input type="file" id="cameraInput" accept="image/*" capture="environment">
 </div>
 
@@ -209,7 +238,14 @@ const statusEl = document.getElementById('status');
 const detailsPanel = document.getElementById('detailsPanel');
 const guestNameInput = document.getElementById('guestName');
 const captionInput = document.getElementById('caption');
-const retakeBtn = document.getElementById('retakeBtn');
+const frameCard = document.getElementById('frameCard');
+const photoHint = document.getElementById('photoHint');
+const rollReview = document.getElementById('rollReview');
+const rollGrid = document.getElementById('rollGrid');
+const rollTitle = document.getElementById('rollTitle');
+const rollSubtitle = document.getElementById('rollSubtitle');
+// Las fotos que tomó en esta visita, para revelárselas cuando se acabe el rollo.
+const rollPhotos = [];
 const confirmUploadBtn = document.getElementById('confirmUploadBtn');
 
 const modePhotoBtn = document.getElementById('modePhotoBtn');
@@ -281,6 +317,40 @@ function registerShot(eventId) {
 try { localStorage.setItem(shotsKey(eventId), String(shotsTaken(eventId) + 1)); } catch (e) { /* ignorar */ }
 }
 
+// Al acabarse el rollo le enseñamos sus fotos, ya con el formato del evento,
+// que es justo lo que queremos que aprecie: no son fotos de celular, son
+// fotos reveladas. Solo se muestran las de esta visita (las que trae en
+// memoria); si vuelve más tarde con el rollo ya gastado, no hay nada que
+// revelar y simplemente no aparece la sección.
+function revealRoll() {
+if (!rollPhotos.length) { rollReview.hidden = true; return; }
+
+// Con el rollo ya revelado, el marco vacío y la instrucción de disparar sobran.
+frameCard.hidden = true;
+photoHint.hidden = true;
+
+rollTitle.textContent = currentEvent.isDemo ? 'Así quedaron tus fotos' : 'Tu rollo revelado';
+rollSubtitle.textContent = currentEvent.isDemo
+? 'Este es el formato que llevaría tu evento. En uno de verdad cada invitado trae ' + PHOTO_LIMIT + ' fotos, no ' + DEMO_PHOTO_LIMIT + '.'
+: 'Ya están en el álbum del evento, con el formato que eligió el anfitrión.';
+// El mensaje ya lo dice aquí arriba; no hace falta repetirlo hasta abajo.
+if (currentEvent.isDemo) setStatus('');
+
+rollGrid.innerHTML = '';
+const esPolaroid = currentEvent.filterClass === 'filter-polaroid';
+rollPhotos.forEach(src => {
+const marco = document.createElement('div');
+marco.className = 'roll-shot' + (esPolaroid ? ' polaroid-shot' : '');
+const img = document.createElement('img');
+img.className = currentEvent.filterClass;
+img.alt = 'Foto que tomaste';
+img.src = src;
+marco.appendChild(img);
+rollGrid.appendChild(marco);
+});
+rollReview.hidden = false;
+}
+
 // Pinta el contador y apaga el obturador cuando ya se acabó el rollo.
 function refreshShotsUI() {
 if (!currentEvent) return;
@@ -289,6 +359,7 @@ shotsLeftEl.hidden = false;
 shotsLeftEl.classList.toggle('empty', left === 0);
 if (left === 0) {
 shutterBtn.disabled = true;
+shutterBtn.hidden = true;
 if (currentEvent.isDemo) {
 // En la demo el final del rollo es el momento de contarle qué sigue.
 shotsLeftEl.textContent = 'Fin de la prueba';
@@ -297,9 +368,14 @@ setStatus('Así se siente. En tu evento cada invitado trae ' + PHOTO_LIMIT + ' f
 shotsLeftEl.textContent = 'Se te acabó el rollo';
 setStatus('Ya subiste tus ' + currentEvent.photoLimit + ' fotos. Todavía puedes dejar un mensaje de voz.');
 }
+revealRoll();
 } else {
 shotsLeftEl.textContent = left === 1 ? 'Te queda 1 foto' : 'Te quedan ' + left + ' fotos';
 shutterBtn.disabled = false;
+shutterBtn.hidden = false;
+rollReview.hidden = true;
+frameCard.hidden = false;
+photoHint.hidden = false;
 }
 }
 
@@ -330,7 +406,7 @@ photoLimit: photoLimitFor(slug),
 isDemo: slug === DEMO_SLUG
 };
 
-document.getElementById('frameCard').classList.toggle('polaroid-card', currentEvent.filterClass === 'filter-polaroid');
+frameCard.classList.toggle('polaroid-card', currentEvent.filterClass === 'filter-polaroid');
 document.getElementById('frame').classList.toggle('vintage-glow', currentEvent.filterClass === 'filter-vintage');
 
 // si ya puso su nombre en una foto o mensaje anterior de esta visita, lo recordamos
@@ -424,14 +500,9 @@ cameraInput.value = '';
 }
 });
 
-retakeBtn.addEventListener('click', () => {
-pendingBlob = null;
-detailsPanel.hidden = true;
-shutterBtn.hidden = false;
-shutterBtn.disabled = false;
-frame.innerHTML = '<div class="placeholder">Aquí aparecerá tu foto</div>';
-cameraInput.click();
-});
+// Aquí antes vivía el botón "Tomar otra". Se quitó a propósito: en una cámara
+// desechable la foto que tomaste es la que se queda, y esa es justo la gracia
+// del producto. Si se vuelve a necesitar, va aquí.
 
 confirmUploadBtn.addEventListener('click', async () => {
 if (!pendingBlob || !currentEvent) return;
@@ -440,7 +511,6 @@ const guestName = guestNameInput.value.trim();
 const caption = captionInput.value.trim();
 
 confirmUploadBtn.disabled = true;
-retakeBtn.disabled = true;
 confirmUploadBtn.textContent = 'Subiendo…';
 setStatus('Revelando…');
 
@@ -463,26 +533,23 @@ if (insertError) throw insertError;
 try { if (guestName) localStorage.setItem('revelado_guest_name', guestName); } catch (e) { /* ignorar */ }
 
 registerShot(currentEvent.id);
+// Nos guardamos la foto de esta visita para poder enseñarle su rollo al final.
+rollPhotos.push(URL.createObjectURL(pendingBlob));
 
 setStatus('¡Lista! Ya está en el álbum.', 'ok');
 pendingBlob = null;
 detailsPanel.hidden = true;
-shutterBtn.hidden = false;
 captionInput.value = '';
-const left = shotsRemaining(currentEvent.id);
-if (left === 0) {
-refreshShotsUI();
-} else {
-shotsLeftEl.textContent = left === 1 ? 'Te queda 1 foto' : 'Te quedan ' + left + ' fotos';
-}
+frame.innerHTML = '<div class="placeholder">Aquí aparecerá tu foto</div>';
 } catch (err) {
 console.error(err);
 setStatus('No se pudo subir: ' + describeError(err), 'err');
 } finally {
 confirmUploadBtn.disabled = false;
-retakeBtn.disabled = false;
 confirmUploadBtn.textContent = 'Subir foto';
-shutterBtn.disabled = false;
+// refreshShotsUI decide si el obturador vuelve o no: si el rollo se acabó
+// con esta foto, tiene que quedarse apagado.
+refreshShotsUI();
 }
 });
 
