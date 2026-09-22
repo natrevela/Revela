@@ -246,14 +246,23 @@ cameraUI.hidden = true;
 }
 
 // --- 2.5) El "rollo": cada invitado trae un número fijo de fotos ------
-// Es la gracia de la cámara desechable: cuando sabes que tienes 25, piensas
+// Es la gracia de la cámara desechable: cuando sabes cuántas traes, piensas
 // cada foto. El conteo se guarda en el propio celular del invitado, por
 // evento, así que si alguien borra los datos de su navegador puede volver a
 // empezar — no es un candado, es la regla del juego.
+// En un evento de verdad son 25 fotos; la demo de la página trae solo 5,
+// suficientes para probar cómo se siente sin regalar el evento completo.
 const PHOTO_LIMIT = 25;
+const DEMO_SLUG = 'demo';
+const DEMO_PHOTO_LIMIT = 5;
 const shotsLeftEl = document.getElementById('shotsLeft');
 
 function shotsKey(eventId) { return 'revelado_shots_' + eventId; }
+
+// Cuántas fotos trae el rollo de este evento (la demo trae menos).
+function photoLimitFor(slug) {
+return slug === DEMO_SLUG ? DEMO_PHOTO_LIMIT : PHOTO_LIMIT;
+}
 
 function shotsTaken(eventId) {
 try {
@@ -264,7 +273,8 @@ return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 function shotsRemaining(eventId) {
-return Math.max(0, PHOTO_LIMIT - shotsTaken(eventId));
+const limit = currentEvent && currentEvent.photoLimit ? currentEvent.photoLimit : PHOTO_LIMIT;
+return Math.max(0, limit - shotsTaken(eventId));
 }
 
 function registerShot(eventId) {
@@ -278,9 +288,15 @@ const left = shotsRemaining(currentEvent.id);
 shotsLeftEl.hidden = false;
 shotsLeftEl.classList.toggle('empty', left === 0);
 if (left === 0) {
-shotsLeftEl.textContent = 'Se te acabó el rollo';
 shutterBtn.disabled = true;
-setStatus('Ya subiste tus ' + PHOTO_LIMIT + ' fotos. Todavía puedes dejar un mensaje de voz.');
+if (currentEvent.isDemo) {
+// En la demo el final del rollo es el momento de contarle qué sigue.
+shotsLeftEl.textContent = 'Fin de la prueba';
+setStatus('Así se siente. En tu evento cada invitado trae ' + PHOTO_LIMIT + ' fotos.');
+} else {
+shotsLeftEl.textContent = 'Se te acabó el rollo';
+setStatus('Ya subiste tus ' + currentEvent.photoLimit + ' fotos. Todavía puedes dejar un mensaje de voz.');
+}
 } else {
 shotsLeftEl.textContent = left === 1 ? 'Te queda 1 foto' : 'Te quedan ' + left + ' fotos';
 shutterBtn.disabled = false;
@@ -288,7 +304,7 @@ shutterBtn.disabled = false;
 }
 
 // --- 3) Identificar el evento a partir del link (?e=slug-del-evento) ---
-let currentEvent = null; // { id, filterClass }
+let currentEvent = null; // { id, filterClass, photoLimit, isDemo }
 
 async function loadEvent() {
 const slug = new URLSearchParams(window.location.search).get('e');
@@ -307,7 +323,12 @@ showError('Este evento todavía no está activo.');
 return;
 }
 
-currentEvent = { id: data.id, filterClass: 'filter-' + (data.filter || 'vintage') };
+currentEvent = {
+id: data.id,
+filterClass: 'filter-' + (data.filter || 'vintage'),
+photoLimit: photoLimitFor(slug),
+isDemo: slug === DEMO_SLUG
+};
 
 document.getElementById('frameCard').classList.toggle('polaroid-card', currentEvent.filterClass === 'filter-polaroid');
 document.getElementById('frame').classList.toggle('vintage-glow', currentEvent.filterClass === 'filter-vintage');
