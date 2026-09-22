@@ -104,6 +104,11 @@ flex:1; font-size:13.5px; font-weight:600; padding:11px 10px; border-radius:8px;
 .btn-upload:hover{background:var(--amber-bright);}
 .btn-secondary:disabled, .btn-upload:disabled{opacity:0.6; cursor:default;}
 
+.shots-left{
+margin-top:14px; font-size:12.5px; letter-spacing:0.04em; text-transform:uppercase;
+font-weight:600; color:var(--paper-dim);
+}
+.shots-left.empty{color:#b0523a;}
 .status{margin-top:18px; font-size:13.5px; color:var(--paper-dim); min-height:20px;}
 .status.ok{color:var(--fixer);}
 .status.err{color:#b0523a;}
@@ -157,6 +162,7 @@ puede ignorar "hidden" y dejar el elemento visible por error. */
 <button class="shutter-btn" id="shutterBtn" aria-label="Tomar foto">
 <svg viewBox="0 0 24 24" fill="none" stroke="#2a1d14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path><circle cx="12" cy="13" r="3.4"></circle></svg>
 </button>
+<div class="shots-left" id="shotsLeft" hidden></div>
 <input type="file" id="cameraInput" accept="image/*" capture="environment">
 </div>
 
@@ -239,6 +245,48 @@ stateScreen.hidden = false;
 cameraUI.hidden = true;
 }
 
+// --- 2.5) El "rollo": cada invitado trae un número fijo de fotos ------
+// Es la gracia de la cámara desechable: cuando sabes que tienes 25, piensas
+// cada foto. El conteo se guarda en el propio celular del invitado, por
+// evento, así que si alguien borra los datos de su navegador puede volver a
+// empezar — no es un candado, es la regla del juego.
+const PHOTO_LIMIT = 25;
+const shotsLeftEl = document.getElementById('shotsLeft');
+
+function shotsKey(eventId) { return 'revelado_shots_' + eventId; }
+
+function shotsTaken(eventId) {
+try {
+const raw = localStorage.getItem(shotsKey(eventId));
+const n = parseInt(raw, 10);
+return Number.isFinite(n) && n > 0 ? n : 0;
+} catch (e) { return 0; }
+}
+
+function shotsRemaining(eventId) {
+return Math.max(0, PHOTO_LIMIT - shotsTaken(eventId));
+}
+
+function registerShot(eventId) {
+try { localStorage.setItem(shotsKey(eventId), String(shotsTaken(eventId) + 1)); } catch (e) { /* ignorar */ }
+}
+
+// Pinta el contador y apaga el obturador cuando ya se acabó el rollo.
+function refreshShotsUI() {
+if (!currentEvent) return;
+const left = shotsRemaining(currentEvent.id);
+shotsLeftEl.hidden = false;
+shotsLeftEl.classList.toggle('empty', left === 0);
+if (left === 0) {
+shotsLeftEl.textContent = 'Se te acabó el rollo';
+shutterBtn.disabled = true;
+setStatus('Ya subiste tus ' + PHOTO_LIMIT + ' fotos. Todavía puedes dejar un mensaje de voz.');
+} else {
+shotsLeftEl.textContent = left === 1 ? 'Te queda 1 foto' : 'Te quedan ' + left + ' fotos';
+shutterBtn.disabled = false;
+}
+}
+
 // --- 3) Identificar el evento a partir del link (?e=slug-del-evento) ---
 let currentEvent = null; // { id, filterClass }
 
@@ -275,6 +323,7 @@ voiceGuestName.value = savedName;
 
 stateScreen.hidden = true;
 cameraUI.hidden = false;
+refreshShotsUI();
 }
 
 // --- 4) Selector de modo: foto o mensaje de voz ---------------------
@@ -285,6 +334,7 @@ voiceMode.hidden = !isVoice;
 modePhotoBtn.classList.toggle('active', !isVoice);
 modeVoiceBtn.classList.toggle('active', isVoice);
 setStatus('');
+if (!isVoice) refreshShotsUI();
 }
 modePhotoBtn.addEventListener('click', () => setMode('photo'));
 modeVoiceBtn.addEventListener('click', () => setMode('voice'));
@@ -319,7 +369,10 @@ fallback();
 // --- 6) El flujo de foto: foto -> vista previa + nombre/mensaje -> confirmar -> subir
 let pendingBlob = null;
 
-shutterBtn.addEventListener('click', () => cameraInput.click());
+shutterBtn.addEventListener('click', () => {
+if (currentEvent && shotsRemaining(currentEvent.id) === 0) { refreshShotsUI(); return; }
+cameraInput.click();
+});
 
 cameraInput.addEventListener('change', async () => {
 const file = cameraInput.files[0];
@@ -388,11 +441,19 @@ if (insertError) throw insertError;
 
 try { if (guestName) localStorage.setItem('revelado_guest_name', guestName); } catch (e) { /* ignorar */ }
 
+registerShot(currentEvent.id);
+
 setStatus('¡Lista! Ya está en el álbum.', 'ok');
 pendingBlob = null;
 detailsPanel.hidden = true;
 shutterBtn.hidden = false;
 captionInput.value = '';
+const left = shotsRemaining(currentEvent.id);
+if (left === 0) {
+refreshShotsUI();
+} else {
+shotsLeftEl.textContent = left === 1 ? 'Te queda 1 foto' : 'Te quedan ' + left + ' fotos';
+}
 } catch (err) {
 console.error(err);
 setStatus('No se pudo subir: ' + describeError(err), 'err');
