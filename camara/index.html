@@ -494,7 +494,9 @@ etiqueta.className = 'etiqueta';
 etiqueta.textContent = sentVoices.length === 1 ? 'Ya está en el álbum' : 'Mensaje ' + (i + 1);
 const audio = document.createElement('audio');
 audio.controls = true;
+audio.preload = 'metadata';
 audio.src = msg;
+fixAudioDuration(audio);
 fila.appendChild(etiqueta);
 fila.appendChild(audio);
 voiceSentList.appendChild(fila);
@@ -729,6 +731,67 @@ let recordStartTime = 0;
 let recordTimerInterval = null;
 let recordStopTimeout = null;
 
+// Calidad del audio --------------------------------------------------
+// 1) Por default el navegador prende los "arreglos" pensados para llamadas:
+//    cancelación de eco, supresión de ruido y control automático de ganancia.
+//    En una llamada ayudan, pero en una fiesta destrozan el audio: se comen la
+//    música, cortan pedazos y hacen que suba y baje el volumen solo. Apagarlos
+//    es lo que más se nota.
+// 2) Sin bitrate explícito, el navegador graba con uno conservador. A 128 kbps
+//    se oye claramente mejor y 15 segundos siguen pesando poco (~240 KB).
+const AUDIO_BITRATE = 128000;
+
+async function getMicStream() {
+const buenaCalidad = {
+audio: {
+echoCancellation: false,
+noiseSuppression: false,
+autoGainControl: false,
+channelCount: 1,
+sampleRate: 48000
+}
+};
+try {
+return await navigator.mediaDevices.getUserMedia(buenaCalidad);
+} catch (e) {
+// Si el navegador no acepta esos ajustes, mejor grabar normal que no grabar.
+return await navigator.mediaDevices.getUserMedia({ audio: true });
+}
+}
+
+function makeRecorder(stream, mimeType) {
+const opciones = mimeType
+? { mimeType: mimeType, audioBitsPerSecond: AUDIO_BITRATE }
+: { audioBitsPerSecond: AUDIO_BITRATE };
+try {
+return new MediaRecorder(stream, opciones);
+} catch (e) {
+// Algún navegador viejo puede no aceptar el bitrate: grabamos sin él.
+return mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+}
+}
+
+// El audio que graba el navegador no trae escrita su duración: por eso el
+// reproductor marca 0:00, no deja mover la barra y a veces se oye cortado o se
+// detiene antes de tiempo. Esto lo obliga a medirla: se le pide saltar a un
+// punto imposible y, cuando el navegador responde, ya sabe cuánto dura.
+function fixAudioDuration(audio) {
+if (!audio) return;
+const medir = () => {
+if (audio.duration === Infinity || isNaN(audio.duration)) {
+audio.currentTime = 1e101;
+const alVolver = () => {
+audio.removeEventListener('timeupdate', alVolver);
+audio.currentTime = 0;
+};
+audio.addEventListener('timeupdate', alVolver);
+}
+};
+audio.addEventListener('loadedmetadata', medir);
+// Si los metadatos ya estaban listos, el evento no vuelve a dispararse.
+if (audio.readyState >= 1) medir();
+}
+
 function pickMimeType() {
 const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
 if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return '';
@@ -765,9 +828,9 @@ setStatus('Tu navegador no permite grabar audio aquí.', 'err');
 return;
 }
 try {
-const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+const stream = await getMicStream();
 const mimeType = pickMimeType();
-mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+mediaRecorder = makeRecorder(stream, mimeType);
 recordedChunks = [];
 
 mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
@@ -777,6 +840,7 @@ clearInterval(recordTimerInterval);
 clearTimeout(recordStopTimeout);
 recordedBlob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || mimeType || 'audio/webm' });
 voiceAudio.src = URL.createObjectURL(recordedBlob);
+fixAudioDuration(voiceAudio);
 recordBtn.hidden = true;
 recordBtn.classList.remove('recording');
 recordTimer.hidden = true;
