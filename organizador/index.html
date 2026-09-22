@@ -457,6 +457,26 @@ tabFotosBtn.addEventListener('click', () => setTab('fotos'));
 tabMensajesBtn.addEventListener('click', () => setTab('mensajes'));
 tabAlbumBtn.addEventListener('click', () => setTab('album'));
 
+// El audio grabado por el navegador no trae escrita su duración: el
+// reproductor marca 0:00, no deja mover la barra y a veces se detiene antes
+// de tiempo. Esto lo obliga a medirla. (La cámara tiene esta misma función;
+// aquí hace falta otra vez porque este es otro archivo.)
+function fixAudioDuration(audio) {
+if (!audio) return;
+const medir = () => {
+if (audio.duration === Infinity || isNaN(audio.duration)) {
+audio.currentTime = 1e101;
+const alVolver = () => {
+audio.removeEventListener('timeupdate', alVolver);
+audio.currentTime = 0;
+};
+audio.addEventListener('timeupdate', alVolver);
+}
+};
+audio.addEventListener('loadedmetadata', medir);
+if (audio.readyState >= 1) medir();
+}
+
 function renderVoiceMessages(messages) {
 if (messages.length === 0) {
 voiceContentEl.innerHTML = '<div class="empty">Aún no hay mensajes de voz. En cuanto alguien grabe uno desde la cámara, va a aparecer aquí solo.</div>';
@@ -468,9 +488,12 @@ const nameHtml = m.guest_name
 : '<span class="msg-name anon">Invitado anónimo</span>';
 return '<div class="msg-card">' +
 '<div class="msg-top">' + nameHtml + '<span class="msg-ts">' + esc(fmtTime(m.created_at)) + '</span></div>' +
-'<audio controls src="' + esc(m.audio_url) + '"></audio>' +
+'<audio controls preload="metadata" src="' + esc(m.audio_url) + '"></audio>' +
 '</div>';
 }).join('') + '</div>';
+
+// Estos audios vienen del navegador sin duración escrita: hay que medirla.
+voiceContentEl.querySelectorAll('audio').forEach(a => fixAudioDuration(a));
 }
 
 async function loadVoiceMessages() {
