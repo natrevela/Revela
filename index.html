@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Revelado — Fotos de tu evento, reveladas al instante</title>
-<meta name="description" content="Tus invitados escanean un QR y toman fotos con su propio celular, sin instalar nada. Todas las fotos aparecen al instante en un álbum en vivo.">
+<meta name="description" content="Tus invitados escanean un QR y toman fotos con su propio celular, sin instalar nada. Todas las fotos aparecen al instante en un álbum en vivo. Desde $790 MXN por evento.">
 
 <style>
 :root{
@@ -15,6 +15,7 @@
 --shadow:0 14px 30px -16px rgba(42,29,20,0.16);
 }
 *,*::before,*::after{box-sizing:border-box;}
+[hidden]{display:none!important;}
 body{
 margin:0; background:var(--darkroom); color:var(--paper);
 font-family:system-ui, sans-serif; line-height:1.5;
@@ -31,11 +32,7 @@ padding:7px 14px; border-radius:999px; white-space:nowrap;
 }
 .nav-login:hover{color:var(--paper); border-color:var(--paper-dim);}
 
-/* --- Hero --- */
-.hero{padding:36px 0 56px; text-align:center;}
-.hero h1{font-size:2.4rem; line-height:1.15; margin:0 0 16px; max-width:20ch; margin-left:auto; margin-right:auto;}
-.hero h1 em{color:var(--amber); font-style:normal;}
-.hero p{color:var(--paper-dim); font-size:1.05rem; max-width:44ch; margin:0 auto 28px;}
+/* --- Botones --- */
 .btn{
 display:inline-flex; align-items:center; gap:8px; font-family:inherit; font-size:15px; font-weight:600;
 text-decoration:none; cursor:pointer; border-radius:999px; padding:13px 26px; border:none;
@@ -45,14 +42,53 @@ text-decoration:none; cursor:pointer; border-radius:999px; padding:13px 26px; bo
 .btn-ghost{background:transparent; color:var(--paper); border:1px solid var(--line-strong);}
 .btn-ghost:hover{border-color:var(--paper-dim);}
 
-/* --- Cómo funciona --- */
-.how{padding:20px 0 60px;}
-.how h2, .pricing h2{text-align:center; font-size:1.6rem; margin:0 0 8px;}
-.section-sub{text-align:center; color:var(--paper-dim); font-size:14.5px; margin:0 0 36px;}
-.steps{display:grid; gap:18px; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));}
-.step{
-background:var(--darkroom-2); border:1px solid var(--line); border-radius:14px; padding:22px 20px;
+/* --- Hero con QR de demo --- */
+/* Ojo: .wrap ya pone el respiro de los lados (padding:0 20px). Aquí sólo se
+   toca el vertical con padding-block, porque un `padding` completo se lo
+   comería y en celular el texto quedaría pegado a la orilla. */
+.hero{padding-block:30px 44px; display:grid; gap:36px; grid-template-columns:1.15fr 0.85fr; align-items:center;}
+.hero h1{font-size:2.5rem; line-height:1.12; margin:0 0 16px; max-width:16ch;}
+.hero h1 em{color:var(--amber); font-style:normal;}
+.hero-lede{color:var(--paper-dim); font-size:1.05rem; max-width:46ch; margin:0 0 26px;}
+.hero-ctas{display:flex; flex-wrap:wrap; gap:12px;}
+
+.demo-card{
+background:var(--darkroom-2); border:1px solid var(--line); border-radius:18px;
+padding:24px 22px; text-align:center; box-shadow:var(--shadow);
+display:flex; flex-direction:column; align-items:center; gap:12px;
+text-decoration:none; color:inherit;
 }
+.demo-card:hover{border-color:var(--amber);}
+.demo-eyebrow{
+font-size:11px; letter-spacing:0.09em; text-transform:uppercase; font-weight:700; color:var(--amber);
+}
+.qr-holder{
+background:#fff; border-radius:12px; padding:14px; line-height:0;
+border:1px solid var(--line);
+}
+.qr-svg{width:148px; height:148px; display:block; color:var(--paper);}
+.demo-card p{margin:0; font-size:13px; color:var(--paper-dim); max-width:26ch;}
+.demo-card strong{color:var(--paper);}
+
+/* --- Tira de confianza --- */
+.trust{
+border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+display:flex; flex-wrap:wrap; justify-content:center; gap:10px 28px;
+padding:16px 20px; font-size:13px; color:var(--paper-dim);
+}
+.trust span{display:inline-flex; align-items:center; gap:7px;}
+.trust span::before{content:""; width:5px; height:5px; border-radius:50%; background:var(--fixer);}
+
+/* --- Secciones --- */
+/* section.wrap (dos "puntos" de especificidad) tiene que ganarle a .wrap,
+   si no el padding vertical se pierde y las secciones se encalambran. */
+section.wrap{padding-block:58px;}
+section h2{text-align:center; font-size:1.6rem; margin:0 0 8px;}
+.section-sub{text-align:center; color:var(--paper-dim); font-size:14.5px; margin:0 auto 36px; max-width:52ch;}
+
+/* --- Cómo funciona --- */
+.steps{display:grid; gap:18px; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));}
+.step{background:var(--darkroom-2); border:1px solid var(--line); border-radius:14px; padding:22px 20px;}
 .step-num{
 width:30px; height:30px; border-radius:50%; background:rgba(201,124,86,0.16); color:var(--paper);
 display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; margin-bottom:14px;
@@ -60,12 +96,23 @@ display:flex; align-items:center; justify-content:center; font-weight:700; font-
 .step h3{font-size:1rem; margin:0 0 6px;}
 .step p{color:var(--paper-dim); font-size:13.5px; margin:0;}
 
-/* --- Formatos --- */
-.formats{padding:10px 0 60px;}
-.format-grid{display:grid; gap:16px; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));}
-.format-chip{
-background:var(--darkroom-2); border:1px solid var(--line); border-radius:12px; padding:18px 16px; text-align:center;
+/* --- Qué te llevas --- */
+.gets{display:grid; gap:20px; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));}
+.get{display:flex; flex-direction:column; gap:10px;}
+.get-icon{
+width:42px; height:42px; border-radius:12px; background:var(--darkroom-2); border:1px solid var(--line);
+display:flex; align-items:center; justify-content:center; color:var(--amber);
 }
+.get h3{font-size:1.05rem; margin:0;}
+.get p{color:var(--paper-dim); font-size:13.5px; margin:0;}
+.get .tag{
+align-self:flex-start; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; font-weight:700;
+color:var(--fixer); border:1px solid rgba(126,145,114,0.4); border-radius:999px; padding:3px 9px;
+}
+
+/* --- Formatos --- */
+.format-grid{display:grid; gap:16px; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));}
+.format-chip{background:var(--darkroom-2); border:1px solid var(--line); border-radius:12px; padding:18px 16px; text-align:center;}
 .format-chip .dot{width:34px; height:34px; border-radius:50%; margin:0 auto 10px;}
 .format-chip.vintage .dot{background:linear-gradient(135deg, #d9a25c, #8a5a2e);}
 .format-chip.bw .dot{background:linear-gradient(135deg, #eee, #333);}
@@ -74,30 +121,61 @@ background:var(--darkroom-2); border:1px solid var(--line); border-radius:12px; 
 .format-chip span{color:var(--paper-dim); font-size:12.5px;}
 
 /* --- Precios --- */
-.pricing{padding:10px 0 64px;}
-.plans{display:grid; gap:18px; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));}
+.plans{display:grid; gap:18px; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); align-items:start;}
 .plan{
 background:var(--darkroom-2); border:1px solid var(--line); border-radius:16px; padding:26px 24px;
 display:flex; flex-direction:column; gap:14px;
 }
 .plan.featured{border-color:rgba(201,124,86,0.55); box-shadow:var(--shadow);}
-.plan-tag{
-font-size:11px; letter-spacing:0.05em; text-transform:uppercase; color:var(--amber);
-font-weight:700;
-}
+.plan-tag{font-size:11px; letter-spacing:0.05em; text-transform:uppercase; color:var(--amber); font-weight:700;}
 .plan h3{font-size:1.25rem; margin:0;}
-.plan .price{font-size:1.6rem; font-weight:700;}
-.plan .price small{font-size:12px; font-weight:400; color:var(--paper-faint);}
+.plan .price{font-size:1.9rem; font-weight:700; line-height:1;}
+.plan .price small{font-size:12px; font-weight:400; color:var(--paper-faint); display:block; margin-top:6px;}
 .plan ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
 .plan li{font-size:13.5px; color:var(--paper-dim); padding-left:20px; position:relative;}
 .plan li::before{content:"✓"; position:absolute; left:0; color:var(--fixer);}
 .plan .btn{justify-content:center; margin-top:6px;}
-.price-pending{color:var(--paper-faint); font-size:11px; font-style:italic;}
+.pricing-note{text-align:center; color:var(--paper-faint); font-size:12.5px; margin:24px auto 0; max-width:54ch;}
 
-/* --- Footer / contacto --- */
-footer{border-top:1px solid var(--line); padding:32px 0 40px; text-align:center;}
-footer p{color:var(--paper-faint); font-size:12.5px; margin:0 0 14px;}
-footer .btn{font-size:13.5px; padding:10px 20px;}
+/* --- Tipos de evento --- */
+.events-grid{display:flex; flex-wrap:wrap; justify-content:center; gap:10px;}
+.event-chip{
+border:1px solid var(--line-strong); border-radius:999px; padding:9px 18px; font-size:13.5px;
+color:var(--paper-dim); background:var(--darkroom-2);
+}
+
+/* --- Preguntas frecuentes --- */
+.faq{max-width:700px; margin:0 auto;}
+.faq details{border-bottom:1px solid var(--line); padding:4px 0;}
+.faq summary{
+cursor:pointer; list-style:none; padding:15px 28px 15px 0; font-weight:600; font-size:15px; position:relative;
+}
+.faq summary::-webkit-details-marker{display:none;}
+.faq summary::after{
+content:"+"; position:absolute; right:4px; top:13px; font-size:20px; font-weight:400; color:var(--amber);
+}
+.faq details[open] summary::after{content:"−";}
+.faq details p{margin:0 0 16px; color:var(--paper-dim); font-size:14px; max-width:62ch;}
+
+/* --- Cierre --- */
+.closer{
+background:var(--darkroom-2); border-top:1px solid var(--line); text-align:center;
+padding:56px 20px;
+}
+.closer h2{margin-bottom:10px;}
+.closer p{color:var(--paper-dim); font-size:14.5px; margin:0 auto 24px; max-width:44ch;}
+.closer-ctas{display:flex; flex-wrap:wrap; gap:12px; justify-content:center;}
+
+footer.wrap{padding-block:26px 40px; text-align:center;}
+footer p{color:var(--paper-faint); font-size:12.5px; margin:0;}
+
+@media (max-width:760px){
+.hero{grid-template-columns:1fr; text-align:center; padding-top:16px;}
+.hero h1{max-width:100%; font-size:2.1rem;}
+.hero-lede{margin-left:auto; margin-right:auto;}
+.hero-ctas{justify-content:center;}
+.get{align-items:flex-start;}
+}
 </style>
 </head>
 <body>
@@ -108,10 +186,28 @@ footer .btn{font-size:13.5px; padding:10px 20px;}
 </nav>
 
 <header class="hero wrap">
+<div>
 <h1>Las fotos de tu evento, <em>reveladas</em> al momento</h1>
-<p>Tus invitados escanean un QR y toman fotos con su propio celular — sin instalar nada. Todas las fotos caen solas en un álbum en vivo que puedes ver mientras el evento sigue pasando.</p>
-<a class="btn btn-primary" href="https://wa.me/525534635250?text=Hola%2C%20quiero%20m%C3%A1s%20informaci%C3%B3n%20sobre%20Revelado%20para%20mi%20evento">Cotizar mi evento</a>
+<p class="hero-lede">Tus invitados escanean un QR y toman fotos con su propio celular — sin instalar nada. Todas las fotos caen solas en un álbum en vivo que puedes ver mientras el evento sigue pasando.</p>
+<div class="hero-ctas">
+<a class="btn btn-primary" href="#paquetes">Ver precios</a>
+<a class="btn btn-ghost" href="https://wa.me/525534635250?text=Hola%2C%20quiero%20m%C3%A1s%20informaci%C3%B3n%20sobre%20Revelado%20para%20mi%20evento">Cotizar mi evento</a>
+</div>
+</div>
+
+<a class="demo-card" href="/camara/?e=demo">
+<span class="demo-eyebrow">Pruébalo ahora</span>
+<span class="qr-holder"><svg class="qr-svg" viewBox="0 0 37 37" role="img" aria-label="Codigo QR de la demo" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges"><path d="M2 2h7v1h-7zM10 2h3v1h-3zM14 2h3v1h-3zM18 2h2v1h-2zM21 2h2v1h-2zM25 2h1v1h-1zM28 2h7v1h-7zM2 3h1v1h-1zM8 3h1v1h-1zM10 3h1v1h-1zM13 3h3v1h-3zM18 3h1v1h-1zM20 3h1v1h-1zM22 3h1v1h-1zM24 3h2v1h-2zM28 3h1v1h-1zM34 3h1v1h-1zM2 4h1v1h-1zM4 4h3v1h-3zM8 4h1v1h-1zM11 4h1v1h-1zM14 4h1v1h-1zM18 4h2v1h-2zM22 4h1v1h-1zM26 4h1v1h-1zM28 4h1v1h-1zM30 4h3v1h-3zM34 4h1v1h-1zM2 5h1v1h-1zM4 5h3v1h-3zM8 5h1v1h-1zM10 5h2v1h-2zM13 5h2v1h-2zM16 5h3v1h-3zM21 5h2v1h-2zM24 5h3v1h-3zM28 5h1v1h-1zM30 5h3v1h-3zM34 5h1v1h-1zM2 6h1v1h-1zM4 6h3v1h-3zM8 6h1v1h-1zM11 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM19 6h1v1h-1zM22 6h1v1h-1zM26 6h1v1h-1zM28 6h1v1h-1zM30 6h3v1h-3zM34 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM14 7h2v1h-2zM19 7h4v1h-4zM24 7h1v1h-1zM26 7h1v1h-1zM28 7h1v1h-1zM34 7h1v1h-1zM2 8h7v1h-7zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h7v1h-7zM10 9h3v1h-3zM14 9h1v1h-1zM16 9h1v1h-1zM19 9h1v1h-1zM22 9h1v1h-1zM24 9h3v1h-3zM2 10h1v1h-1zM4 10h2v1h-2zM7 10h3v1h-3zM11 10h1v1h-1zM13 10h1v1h-1zM16 10h1v1h-1zM18 10h4v1h-4zM23 10h2v1h-2zM28 10h1v1h-1zM31 10h1v1h-1zM33 10h2v1h-2zM2 11h1v1h-1zM5 11h1v1h-1zM9 11h2v1h-2zM16 11h1v1h-1zM18 11h1v1h-1zM20 11h2v1h-2zM25 11h1v1h-1zM28 11h2v1h-2zM31 11h2v1h-2zM34 11h1v1h-1zM2 12h7v1h-7zM10 12h1v1h-1zM12 12h1v1h-1zM16 12h1v1h-1zM19 12h1v1h-1zM23 12h5v1h-5zM29 12h3v1h-3zM33 12h2v1h-2zM4 13h2v1h-2zM7 13h1v1h-1zM9 13h2v1h-2zM12 13h6v1h-6zM20 13h2v1h-2zM26 13h1v1h-1zM28 13h2v1h-2zM31 13h1v1h-1zM34 13h1v1h-1zM2 14h3v1h-3zM8 14h1v1h-1zM11 14h1v1h-1zM13 14h2v1h-2zM20 14h1v1h-1zM23 14h1v1h-1zM26 14h1v1h-1zM29 14h3v1h-3zM2 15h1v1h-1zM5 15h1v1h-1zM7 15h1v1h-1zM9 15h6v1h-6zM18 15h3v1h-3zM23 15h1v1h-1zM26 15h2v1h-2zM31 15h1v1h-1zM33 15h1v1h-1zM4 16h6v1h-6zM11 16h1v1h-1zM13 16h1v1h-1zM17 16h2v1h-2zM20 16h1v1h-1zM28 16h4v1h-4zM3 17h3v1h-3zM9 17h2v1h-2zM12 17h3v1h-3zM16 17h1v1h-1zM18 17h1v1h-1zM21 17h4v1h-4zM27 17h3v1h-3zM31 17h2v1h-2zM6 18h1v1h-1zM8 18h1v1h-1zM11 18h1v1h-1zM13 18h2v1h-2zM16 18h2v1h-2zM20 18h6v1h-6zM27 18h2v1h-2zM30 18h3v1h-3zM4 19h1v1h-1zM6 19h1v1h-1zM12 19h1v1h-1zM17 19h4v1h-4zM22 19h2v1h-2zM25 19h2v1h-2zM28 19h1v1h-1zM30 19h2v1h-2zM33 19h2v1h-2zM4 20h5v1h-5zM10 20h1v1h-1zM14 20h4v1h-4zM19 20h1v1h-1zM22 20h1v1h-1zM24 20h1v1h-1zM26 20h5v1h-5zM32 20h2v1h-2zM4 21h1v1h-1zM6 21h2v1h-2zM10 21h3v1h-3zM14 21h1v1h-1zM18 21h1v1h-1zM22 21h2v1h-2zM26 21h2v1h-2zM30 21h1v1h-1zM33 21h1v1h-1zM3 22h3v1h-3zM7 22h2v1h-2zM10 22h1v1h-1zM14 22h1v1h-1zM17 22h1v1h-1zM20 22h1v1h-1zM22 22h1v1h-1zM31 22h2v1h-2zM34 22h1v1h-1zM2 23h1v1h-1zM4 23h2v1h-2zM7 23h1v1h-1zM9 23h1v1h-1zM12 23h2v1h-2zM15 23h3v1h-3zM20 23h1v1h-1zM23 23h1v1h-1zM25 23h1v1h-1zM28 23h1v1h-1zM31 23h1v1h-1zM34 23h1v1h-1zM4 24h1v1h-1zM6 24h4v1h-4zM11 24h2v1h-2zM16 24h1v1h-1zM18 24h1v1h-1zM23 24h1v1h-1zM25 24h2v1h-2zM28 24h1v1h-1zM30 24h1v1h-1zM33 24h2v1h-2zM3 25h4v1h-4zM9 25h1v1h-1zM13 25h2v1h-2zM18 25h1v1h-1zM21 25h1v1h-1zM26 25h3v1h-3zM30 25h2v1h-2zM33 25h2v1h-2zM2 26h1v1h-1zM8 26h1v1h-1zM11 26h1v1h-1zM13 26h2v1h-2zM16 26h2v1h-2zM19 26h1v1h-1zM24 26h7v1h-7zM33 26h2v1h-2zM10 27h10v1h-10zM21 27h1v1h-1zM26 27h1v1h-1zM30 27h2v1h-2zM2 28h7v1h-7zM10 28h3v1h-3zM14 28h2v1h-2zM21 28h1v1h-1zM24 28h3v1h-3zM28 28h1v1h-1zM30 28h1v1h-1zM33 28h1v1h-1zM2 29h1v1h-1zM8 29h1v1h-1zM10 29h3v1h-3zM15 29h1v1h-1zM17 29h2v1h-2zM23 29h4v1h-4zM30 29h3v1h-3zM2 30h1v1h-1zM4 30h3v1h-3zM8 30h1v1h-1zM15 30h2v1h-2zM19 30h1v1h-1zM22 30h1v1h-1zM25 30h6v1h-6zM32 30h1v1h-1zM34 30h1v1h-1zM2 31h1v1h-1zM4 31h3v1h-3zM8 31h1v1h-1zM10 31h2v1h-2zM20 31h3v1h-3zM25 31h1v1h-1zM29 31h1v1h-1zM33 31h2v1h-2zM2 32h1v1h-1zM4 32h3v1h-3zM8 32h1v1h-1zM10 32h2v1h-2zM13 32h2v1h-2zM16 32h1v1h-1zM19 32h3v1h-3zM23 32h4v1h-4zM28 32h2v1h-2zM31 32h2v1h-2zM2 33h1v1h-1zM8 33h1v1h-1zM11 33h1v1h-1zM15 33h7v1h-7zM24 33h1v1h-1zM26 33h5v1h-5zM34 33h1v1h-1zM2 34h7v1h-7zM10 34h3v1h-3zM14 34h1v1h-1zM16 34h5v1h-5zM22 34h2v1h-2zM30 34h3v1h-3z" fill="currentColor"/></svg></span>
+<p><strong>Escanea con tu celular</strong> — o tócalo si ya estás en el teléfono. Así de rápido es para tus invitados.</p>
+</a>
 </header>
+
+<div class="trust wrap">
+<span>Sin apps ni descargas</span>
+<span>Sin cuentas para tus invitados</span>
+<span>Funciona en cualquier celular</span>
+<span>Listo en 5 minutos</span>
+</div>
 
 <section class="how wrap">
 <h2>Cómo funciona</h2>
@@ -125,13 +221,40 @@ footer .btn{font-size:13.5px; padding:10px 20px;}
 <div class="step">
 <div class="step-num">2</div>
 <h3>Toman la foto</h3>
-<p>Se abre directo en el navegador del celular — sin apps, sin cuentas, sin fricción. Tocan el obturador y listo.</p>
+<p>Se abre directo en el navegador — sin apps, sin cuentas. Cada invitado trae 25 fotos, como un rollo: eso hace que piensen bien cada una.</p>
 </div>
 <div class="step">
 <div class="step-num">3</div>
 <h3>Aparece en el álbum</h3>
 <p>La foto entra al instante al álbum en vivo del evento, ya con el formato que elegiste, para que todos la vean pasar en tiempo real.</p>
 </div>
+</div>
+</section>
+
+<section class="gets-section wrap">
+<h2>Qué te llevas</h2>
+<p class="section-sub">No solo fotos: el evento contado por la gente que estuvo ahí.</p>
+<div class="gets">
+
+<div class="get">
+<div class="get-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M8 5l1.2-2h5.6L16 5"/></svg></div>
+<h3>El álbum en vivo</h3>
+<p>Todas las fotos de todos tus invitados, juntas y en un solo lugar, actualizándose mientras la fiesta sigue. Lo abres desde tu celular o lo dejas en una pantalla.</p>
+</div>
+
+<div class="get">
+<div class="get-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div>
+<h3>Mensajes de voz</h3>
+<p>Tus invitados pueden dejarte un audio de 15 segundos en vez de una foto. Es lo que vas a volver a escuchar dentro de diez años.</p>
+<span class="tag">Solo aquí</span>
+</div>
+
+<div class="get">
+<div class="get-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H11v18H5.5A1.5 1.5 0 0 1 4 19.5z"/><path d="M20 4.5A1.5 1.5 0 0 0 18.5 3H13v18h5.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg></div>
+<h3>Álbum impreso</h3>
+<p>Eliges tus favoritas y te armamos el álbum listo para imprimir, con el diseño del evento. Incluido en el paquete Gran Evento.</p>
+</div>
+
 </div>
 </section>
 
@@ -158,51 +281,124 @@ footer .btn{font-size:13.5px; padding:10px 20px;}
 </section>
 
 <section class="pricing wrap" id="paquetes">
-<h2>Paquetes</h2>
-<p class="section-sub">Cada QR tiene un solo formato activo — si quieres más de uno disponible, es un paquete distinto.</p>
+<h2>Precios</h2>
+<p class="section-sub">Un pago por evento, según cuánta gente vas a tener. Sin mensualidades y sin cobro por foto.</p>
 <div class="plans">
+
 <div class="plan">
-<div class="plan-tag">1 formato</div>
-<h3>Paquete Sencillo</h3>
-<div class="price">$[PENDIENTE] <small>MXN / evento</small></div>
-<div class="price-pending">Precio por definir</div>
+<div class="plan-tag">Hasta 50 invitados</div>
+<h3>Reunión</h3>
+<div class="price">$790 <small>MXN por evento</small></div>
 <ul>
-<li>Un formato a elegir (vintage, blanco y negro o polaroid)</li>
-<li>QR y álbum en vivo para tu evento</li>
-<li>Fotos ilimitadas de tus invitados</li>
+<li>QR y álbum en vivo</li>
+<li>25 fotos por invitado</li>
+<li>Mensajes de voz incluidos</li>
+<li>El formato que elijas</li>
 </ul>
 <a class="btn btn-ghost" href="/registro/?paquete=sencillo">Quiero este paquete</a>
 </div>
+
 <div class="plan featured">
-<div class="plan-tag">2 formatos</div>
-<h3>Paquete Doble</h3>
-<div class="price">$[PENDIENTE] <small>MXN / evento</small></div>
-<div class="price-pending">Precio por definir</div>
+<div class="plan-tag">Hasta 150 invitados</div>
+<h3>Fiesta</h3>
+<div class="price">$1,390 <small>MXN por evento</small></div>
 <ul>
-<li>Dos formatos a elegir</li>
-<li>QR y álbum en vivo para tu evento</li>
-<li>Fotos ilimitadas de tus invitados</li>
+<li>Todo lo de Reunión</li>
+<li>Hasta 150 invitados tomando fotos</li>
+<li>Descarga de todas las fotos en alta</li>
+<li>El formato que elijas</li>
 </ul>
 <a class="btn btn-primary" href="/registro/?paquete=doble">Quiero este paquete</a>
 </div>
+
 <div class="plan">
-<div class="plan-tag">3 formatos</div>
-<h3>Paquete Completo</h3>
-<div class="price">$[PENDIENTE] <small>MXN / evento</small></div>
-<div class="price-pending">Precio por definir</div>
+<div class="plan-tag">Hasta 300 invitados</div>
+<h3>Gran Evento</h3>
+<div class="price">$2,290 <small>MXN por evento</small></div>
 <ul>
+<li>Todo lo de Fiesta</li>
+<li>Hasta 300 invitados tomando fotos</li>
+<li>Álbum impreso listo para mandar a imprenta</li>
 <li>Los tres formatos disponibles</li>
-<li>QR y álbum en vivo para tu evento</li>
-<li>Fotos ilimitadas de tus invitados</li>
 </ul>
 <a class="btn btn-ghost" href="/registro/?paquete=completo">Quiero este paquete</a>
 </div>
+
+</div>
+<p class="pricing-note">¿Más de 300 invitados, o varios eventos al año? Escríbenos por WhatsApp y armamos un precio para ti.</p>
+</section>
+
+<section class="events wrap">
+<h2>Para qué eventos sirve</h2>
+<p class="section-sub">Si hay gente con celular, hay fotos que hoy se están perdiendo en chats que nadie vuelve a abrir.</p>
+<div class="events-grid">
+<span class="event-chip">Bodas</span>
+<span class="event-chip">XV años</span>
+<span class="event-chip">Cumpleaños</span>
+<span class="event-chip">Bautizos</span>
+<span class="event-chip">Graduaciones</span>
+<span class="event-chip">Despedidas de soltera</span>
+<span class="event-chip">Posadas</span>
+<span class="event-chip">Baby showers</span>
+<span class="event-chip">Eventos de empresa</span>
+<span class="event-chip">Aniversarios</span>
+</div>
+</section>
+
+<section class="faq-section wrap">
+<h2>Preguntas frecuentes</h2>
+<p class="section-sub">Lo que casi siempre nos preguntan antes de contratar.</p>
+<div class="faq">
+
+<details>
+<summary>¿Mis invitados tienen que descargar algo?</summary>
+<p>No. Escanean el QR con la cámara de su celular y se abre directo en el navegador, como cualquier página. No hay app que instalar, ni cuenta que crear, ni contraseña que recordar. Funciona igual en iPhone y en Android.</p>
+</details>
+
+<details>
+<summary>¿Puedo contratar con meses de anticipación?</summary>
+<p>Sí, y es lo que recomendamos. Creas tu evento cuando quieras y el QR no se activa para tus invitados hasta que tú lo repartas el día del evento.</p>
+</details>
+
+<details>
+<summary>¿Necesita internet en el salón?</summary>
+<p>Sí. Cada invitado sube sus fotos con los datos de su celular o con el wifi del lugar. Si la señal está pesada en algún momento, la foto se sube en cuanto vuelve la conexión, así que vale la pena preguntar por el wifi del salón.</p>
+</details>
+
+<details>
+<summary>¿Por qué 25 fotos por invitado y no ilimitadas?</summary>
+<p>Porque es justo lo que hace que funcione. Es la misma idea de las cámaras desechables que se ponían en las mesas: cuando sabes que tienes un rollo, piensas cada foto en vez de disparar cien veces a lo mismo. El resultado es un álbum que sí da ganas de ver completo.</p>
+</details>
+
+<details>
+<summary>¿Las fotos son mías?</summary>
+<p>Sí. Las fotos de tu evento son tuyas y las descargas cuando quieras desde tu panel. No las usamos para nada más.</p>
+</details>
+
+<details>
+<summary>¿Cuánto tiempo tengo el álbum disponible?</summary>
+<p>El álbum queda disponible en tu panel después del evento para que descargues todo con calma. Si quieres tenerlo por más tiempo o necesitas una descarga especial, escríbenos y lo vemos.</p>
+</details>
+
+<details>
+<summary>¿Puedo pagar por transferencia o pedir factura?</summary>
+<p>Escríbenos por WhatsApp antes de contratar y lo resolvemos contigo.</p>
+</details>
+
+</div>
+</section>
+
+<section class="closer">
+<h2>¿Lo probamos con tu evento?</h2>
+<p>Cuéntanos qué evento es y cuánta gente va, y te decimos exactamente cómo quedaría.</p>
+<div class="closer-ctas">
+<a class="btn btn-primary" href="https://wa.me/525534635250?text=Hola%2C%20quiero%20m%C3%A1s%20informaci%C3%B3n%20sobre%20Revelado%20para%20mi%20evento">Hablar por WhatsApp</a>
+<a class="btn btn-ghost" href="#paquetes">Ver precios otra vez</a>
 </div>
 </section>
 
 <footer class="wrap">
-<p>¿Tienes dudas sobre tu evento? Escríbenos directo.</p>
-<a class="btn btn-primary" href="https://wa.me/525534635250?text=Hola%2C%20quiero%20m%C3%A1s%20informaci%C3%B3n%20sobre%20Revelado%20para%20mi%20evento">Hablar por WhatsApp</a>
+<p>Revelado · Ciudad de México · <a href="/organizador/">Entrar a mi panel</a></p>
 </footer>
 
 </body>
