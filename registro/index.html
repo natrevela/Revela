@@ -119,18 +119,18 @@ puede ignorar "hidden" y dejar el elemento visible por error. */
 <div class="package-picker" id="packagePicker">
 <label class="package-chip" data-value="sencillo">
 <input type="radio" name="package" value="sencillo">
-<span>Sencillo</span>
-<small>1 formato</small>
+<span>Reunión</span>
+<small>Hasta 50 · $790</small>
 </label>
 <label class="package-chip" data-value="doble">
 <input type="radio" name="package" value="doble">
-<span>Doble</span>
-<small>2 formatos</small>
+<span>Fiesta</span>
+<small>Hasta 150 · $1,390</small>
 </label>
 <label class="package-chip" data-value="completo">
 <input type="radio" name="package" value="completo">
-<span>Completo</span>
-<small>3 formatos</small>
+<span>Gran Evento</span>
+<small>Hasta 300 · $2,290</small>
 </label>
 </div>
 </div>
@@ -154,10 +154,13 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Las claves (sencillo/doble/completo) son las que guarda la base de datos;
+// lo que cambia es cómo se le llama al paquete de cara al cliente: ahora es
+// por tamaño del evento, no por número de formatos.
 const PACKAGE_LABELS = {
-sencillo: 'Paquete Sencillo (1 formato)',
-doble: 'Paquete Doble (2 formatos)',
-completo: 'Paquete Completo (los 3 formatos)'
+sencillo: 'Reunión (hasta 50 invitados)',
+doble: 'Fiesta (hasta 150 invitados)',
+completo: 'Gran Evento (hasta 300 invitados)'
 };
 const VALID_PACKAGES = Object.keys(PACKAGE_LABELS);
 
