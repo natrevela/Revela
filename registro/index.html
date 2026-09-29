@@ -35,12 +35,13 @@ padding:28px 24px; box-shadow:var(--shadow);
 
 label{display:block; font-size:12.5px; color:var(--paper-dim); margin-bottom:5px; font-weight:600;}
 .field{margin-bottom:16px;}
-input[type="email"], input[type="password"], input[type="text"], input[type="date"]{
+input[type="email"], input[type="password"], input[type="text"], input[type="date"], input[type="time"]{
 width:100%; font-family:inherit; font-size:14px; padding:11px 12px; border-radius:8px;
 border:1px solid var(--line-strong); background:var(--darkroom); color:var(--paper);
 }
 input:focus{outline:2px solid var(--fixer); outline-offset:1px;}
 input::-webkit-calendar-picker-indicator{filter:invert(0.8);}
+.hint{margin:6px 0 0; font-size:12px; line-height:1.45; color:var(--paper-dim);}
 
 .package-picker{display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;}
 .package-chip{
@@ -111,6 +112,11 @@ puede ignorar "hidden" y dejar el elemento visible por error. */
 <input type="date" id="eventDate" required>
 </div>
 <div class="field">
+<label for="eventTime">¿A qué hora empieza?</label>
+<input type="time" id="eventTime" required>
+<p class="hint">Tu cámara se activa a esta hora y dura 12 horas. El código QR te llega desde hoy, pero no funciona antes.</p>
+</div>
+<div class="field">
 <label for="eventLocation">Lugar del evento</label>
 <input type="text" id="eventLocation" placeholder="Ej. Salón Jardín, CDMX" required>
 </div>
@@ -172,6 +178,30 @@ const formErr = document.getElementById('formErr');
 const packagePicker = document.getElementById('packagePicker');
 
 // --- Quita acentos y símbolos para que el link del QR quede limpio ---
+// --- La ventana de la cámara -----------------------------------------
+// El cliente elige el día y la hora en que empieza su evento; la cámara abre
+// en ese momento y se cierra 12 horas después. Las horas se guardan como un
+// instante exacto (timestamptz), no como texto, para que el celular de cada
+// invitado las entienda igual sin importar dónde esté.
+//
+// México ya no cambia de horario de verano desde 2022, así que el centro del
+// país está siempre en -06:00. Si algún día vendemos en Cancún (-05:00) o
+// Tijuana (-08:00), esta es la línea que hay que tocar.
+const OFFSET_MX = '-06:00';
+const HORAS_DE_DURACION = 12;
+
+function inicioDelEvento(fecha, hora) {
+if (!fecha || !hora) return null;
+const d = new Date(fecha + 'T' + hora + ':00' + OFFSET_MX);
+return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function finDelEvento(fecha, hora) {
+const inicio = inicioDelEvento(fecha, hora);
+if (!inicio) return null;
+return new Date(new Date(inicio).getTime() + HORAS_DE_DURACION * 60 * 60 * 1000).toISOString();
+}
+
 function slugify(text) {
 return text
 .normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -228,6 +258,7 @@ const email = document.getElementById('email').value.trim();
 const password = document.getElementById('password').value;
 const eventName = document.getElementById('eventName').value.trim();
 const eventDate = document.getElementById('eventDate').value;
+const eventTime = document.getElementById('eventTime').value;
 const eventLocation = document.getElementById('eventLocation').value.trim();
 const pkgInput = packagePicker.querySelector('input:checked');
 const pkg = pkgInput ? pkgInput.value : 'sencillo';
@@ -257,6 +288,8 @@ owner_id: signUpData.user.id,
 name: eventName,
 slug: slug,
 event_date: eventDate,
+starts_at: inicioDelEvento(eventDate, eventTime),
+ends_at: finDelEvento(eventDate, eventTime),
 location: eventLocation,
 package: pkg,
 status: 'pendiente_pago'
