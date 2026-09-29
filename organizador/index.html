@@ -131,6 +131,32 @@ border:1px solid var(--line-strong); background:transparent; color:var(--paper);
 }
 .qr-actions button:hover, .qr-actions a:hover{border-color:var(--paper-dim);}
 .qr-copied{color:var(--fixer); font-size:11px;}
+.ventana{margin-top:12px; padding-top:11px; border-top:1px solid var(--line);}
+.ventana-estado{font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; margin-bottom:3px;}
+.ventana-estado.abierta{color:var(--fixer);}
+.ventana-estado.espera{color:var(--paper-dim);}
+.ventana-estado.cerrada{color:#b0523a;}
+.ventana-texto{font-size:12.5px; line-height:1.5; color:var(--paper-dim);}
+.ventana-editar{
+margin-top:7px; font-family:inherit; font-size:11.5px; padding:5px 9px; border-radius:6px;
+border:1px solid var(--line-strong); background:transparent; color:var(--paper-dim); cursor:pointer;
+}
+.ventana-editar:hover{border-color:var(--paper-dim);}
+.ventana-form{margin-top:9px; display:grid; gap:5px;}
+.ventana-form label{font-size:11px; color:var(--paper-dim); font-weight:600;}
+.ventana-form input{
+font-family:inherit; font-size:13px; padding:8px 9px; border-radius:7px;
+border:1px solid var(--line-strong); background:var(--darkroom); color:var(--paper);
+}
+.ventana-acciones{display:flex; gap:7px; margin-top:4px;}
+.ventana-acciones button{
+font-family:inherit; font-size:11.5px; padding:6px 11px; border-radius:6px; cursor:pointer;
+border:1px solid var(--line-strong); background:transparent; color:var(--paper-dim);
+}
+.ventana-guardar{background:var(--fixer)!important; color:#1b2a1e!important; border-color:var(--fixer)!important; font-weight:600;}
+.ventana-msg{font-size:11.5px; min-height:15px;}
+.ventana-msg.err{color:#b0523a;}
+.ventana-msg.ok{color:var(--fixer);}
 
 .empty{border:1px dashed var(--line-strong); border-radius:12px; padding:34px 20px; text-align:center; color:var(--paper-faint); font-size:14px;}
 .err{border:1px solid rgba(176,82,58,0.5); background:var(--darkroom-2); color:#f0b6a5; border-radius:10px; padding:12px 15px; font-size:13.5px; margin-bottom:18px;}
@@ -330,6 +356,23 @@ puede ignorar "hidden" y dejar el elemento visible por error. */
 <button id="copyLinkBtn" type="button">Copiar link</button>
 <a id="downloadQrBtn" download="qr-revelado.svg">Descargar</a>
 <span class="qr-copied" id="qrCopiedMsg" hidden>¡Copiado!</span>
+</div>
+
+<div class="ventana" id="ventanaBox">
+<div class="ventana-estado" id="ventanaEstado">—</div>
+<div class="ventana-texto" id="ventanaTexto">—</div>
+<button type="button" class="ventana-editar" id="ventanaEditarBtn">Cambiar horario</button>
+<div class="ventana-form" id="ventanaForm" hidden>
+<label for="ventanaInicio">Se activa</label>
+<input type="datetime-local" id="ventanaInicio">
+<label for="ventanaFin">Se cierra</label>
+<input type="datetime-local" id="ventanaFin">
+<div class="ventana-acciones">
+<button type="button" class="ventana-guardar" id="ventanaGuardarBtn">Guardar</button>
+<button type="button" class="ventana-cancelar" id="ventanaCancelarBtn">Cancelar</button>
+</div>
+<div class="ventana-msg" id="ventanaMsg"></div>
+</div>
 </div>
 </div>
 </div>
@@ -1043,6 +1086,115 @@ msgEl.hidden = false;
 setTimeout(() => { msgEl.hidden = true; }, 2000);
 });
 
+
+// --- La ventana del evento ------------------------------------------
+// El QR se entrega al comprar, pero la cámara solo abre el día del evento.
+// Aquí se ve cuándo abre y cierra, y se puede mover si el evento se recorre.
+// México no cambia de horario desde 2022: el centro del país es siempre -06:00.
+const OFFSET_MX = '-06:00';
+const ventanaBox = document.getElementById('ventanaBox');
+const ventanaEstado = document.getElementById('ventanaEstado');
+const ventanaTexto = document.getElementById('ventanaTexto');
+const ventanaForm = document.getElementById('ventanaForm');
+const ventanaInicio = document.getElementById('ventanaInicio');
+const ventanaFin = document.getElementById('ventanaFin');
+const ventanaMsg = document.getElementById('ventanaMsg');
+
+function horaBonitaMx(d) {
+return d.toLocaleTimeString('es-MX', { hour:'numeric', minute:'2-digit', hour12:true, timeZone:'America/Mexico_City' })
+.replace(/\s*a\.?\s*m\.?/i, ' am').replace(/\s*p\.?\s*m\.?/i, ' pm');
+}
+
+function fechaHoraMx(iso) {
+const d = new Date(iso);
+if (isNaN(d.getTime())) return '';
+const dia = d.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long', timeZone:'America/Mexico_City' });
+return dia + ' a las ' + horaBonitaMx(d);
+}
+
+// Un instante exacto <-> el valor que entiende <input type="datetime-local">,
+// siempre leído y escrito en hora del centro de México.
+function isoAInput(iso) {
+const d = new Date(iso);
+if (!iso || isNaN(d.getTime())) return '';
+return new Date(d.getTime() - 6 * 3600 * 1000).toISOString().slice(0, 16);
+}
+
+function inputAIso(valor) {
+if (!valor) return null;
+const d = new Date(valor + ':00' + OFFSET_MX);
+return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function pintarVentana(eventRow) {
+const ini = eventRow.starts_at, fin = eventRow.ends_at;
+if (!ini && !fin) {
+ventanaEstado.textContent = 'Sin horario';
+ventanaEstado.className = 'ventana-estado espera';
+ventanaTexto.textContent = 'Este evento no tiene horario configurado, así que el QR funciona desde ahora. Ponle uno para que solo abra el día de la fiesta.';
+} else {
+const ahora = Date.now();
+const tIni = ini ? new Date(ini).getTime() : null;
+const tFin = fin ? new Date(fin).getTime() : null;
+if (tIni && ahora < tIni) {
+ventanaEstado.textContent = 'Todavía no abre';
+ventanaEstado.className = 'ventana-estado espera';
+ventanaTexto.textContent = 'Se activa el ' + fechaHoraMx(ini) + (fin ? ' y se cierra el ' + fechaHoraMx(fin) + '.' : '.');
+} else if (tFin && ahora >= tFin) {
+ventanaEstado.textContent = 'Cerrada';
+ventanaEstado.className = 'ventana-estado cerrada';
+ventanaTexto.textContent = 'Cerró el ' + fechaHoraMx(fin) + '. Tus invitados ya no pueden subir fotos, pero todo lo que mandaron sigue aquí.';
+} else {
+ventanaEstado.textContent = 'Cámara abierta';
+ventanaEstado.className = 'ventana-estado abierta';
+ventanaTexto.textContent = fin ? 'Se cierra el ' + fechaHoraMx(fin) + '.' : 'La cámara está abierta.';
+}
+}
+ventanaInicio.value = isoAInput(ini);
+ventanaFin.value = isoAInput(fin);
+}
+
+document.getElementById('ventanaEditarBtn').addEventListener('click', () => {
+ventanaForm.hidden = !ventanaForm.hidden;
+ventanaMsg.textContent = '';
+});
+
+document.getElementById('ventanaCancelarBtn').addEventListener('click', () => {
+ventanaForm.hidden = true;
+ventanaMsg.textContent = '';
+pintarVentana(currentEvent);
+});
+
+document.getElementById('ventanaGuardarBtn').addEventListener('click', async () => {
+const ini = inputAIso(ventanaInicio.value);
+const fin = inputAIso(ventanaFin.value);
+ventanaMsg.className = 'ventana-msg';
+
+if (!ini || !fin) {
+ventanaMsg.textContent = 'Pon las dos horas: cuándo abre y cuándo cierra.';
+ventanaMsg.classList.add('err');
+return;
+}
+if (new Date(fin) <= new Date(ini)) {
+ventanaMsg.textContent = 'La hora de cierre tiene que ser después de la de apertura.';
+ventanaMsg.classList.add('err');
+return;
+}
+
+ventanaMsg.textContent = 'Guardando…';
+const { error } = await db.from('events').update({ starts_at: ini, ends_at: fin }).eq('id', currentEvent.id);
+if (error) {
+ventanaMsg.textContent = 'No se pudo guardar: ' + error.message;
+ventanaMsg.classList.add('err');
+return;
+}
+currentEvent.starts_at = ini;
+currentEvent.ends_at = fin;
+pintarVentana(currentEvent);
+ventanaForm.hidden = true;
+ventanaMsg.textContent = '';
+});
+
 function showAlbumDashboard(eventRow) {
 currentEvent = eventRow;
 document.getElementById('eventTitle').textContent = eventRow.name;
@@ -1050,6 +1202,7 @@ document.getElementById('eventDateText').textContent = fmtDate(eventRow.event_da
 document.getElementById('eventLocationText').textContent = eventRow.location || 'Por definir';
 formatValueEl.textContent = FILTER_LABELS[eventRow.filter] || FILTER_LABELS.vintage;
 setupQr(eventRow.slug);
+pintarVentana(eventRow);
 tabAlbumBtn.hidden = eventRow.package !== 'completo';
 
 loginView.hidden = true;
@@ -1092,7 +1245,7 @@ if (!session) { showLogin(); return; }
 
 const { data: eventRow, error } = await db
 .from('events')
-.select('id, name, slug, event_date, location, package, status, filter, album_tier')
+.select('id, name, slug, event_date, location, package, status, filter, album_tier, starts_at, ends_at')
 .eq('owner_id', session.user.id)
 .single();
 
