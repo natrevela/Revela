@@ -326,6 +326,7 @@ const rollTitle = document.getElementById('rollTitle');
 const rollPhotos = [];
 const confirmUploadBtn = document.getElementById('confirmUploadBtn');
 
+const modeSwitch = document.getElementById('modeSwitch');
 const modePhotoBtn = document.getElementById('modePhotoBtn');
 const modeVoiceBtn = document.getElementById('modeVoiceBtn');
 const photoMode = document.getElementById('photoMode');
@@ -364,6 +365,73 @@ stateMsg.textContent = msg;
 stateMsg.classList.add('error');
 stateScreen.hidden = false;
 cameraUI.hidden = true;
+}
+
+// Igual que showError pero sin el tono de error: se usa cuando el evento
+// todavia no abre, que no es una falla sino una espera.
+function showAviso(msg) {
+stateMsg.textContent = msg;
+stateMsg.classList.remove('error');
+stateScreen.hidden = false;
+cameraUI.hidden = true;
+}
+
+// --- 2.4) La ventana del evento --------------------------------------
+// El QR se entrega al comprar, pero la camara solo abre el dia del evento y
+// dura 12 horas. Asi nadie quema su rollo tres dias antes de la fiesta.
+// Las horas se guardan en Supabase como timestamptz (un instante exacto), y
+// aqui se comparan contra el reloj del celular: no importa en que huso
+// horario este el invitado, el momento es el mismo.
+const TZ_EVENTO = 'America/Mexico_City';
+
+function horaBonita(d) {
+// es-MX escribe "6:00 p.m."; para la leyenda se lee mejor "6:00 pm".
+return d.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: TZ_EVENTO })
+.replace(/\s*a\.?\s*m\.?/i, ' am')
+.replace(/\s*p\.?\s*m\.?/i, ' pm');
+}
+
+function fechaHoraLarga(iso) {
+const d = new Date(iso);
+if (isNaN(d.getTime())) return '';
+const dia = d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ_EVENTO });
+return dia + ' a las ' + horaBonita(d);
+}
+
+// Devuelve 'antes', 'abierto' o 'cerrado'. Un evento sin horas configuradas
+// (la demo, o los eventos viejos) se considera siempre abierto.
+function momentoDelEvento(startsAt, endsAt, ahora) {
+const t = (ahora === undefined || ahora === null) ? Date.now() : ahora;
+if (startsAt) {
+const ini = new Date(startsAt).getTime();
+if (Number.isFinite(ini) && t < ini) return 'antes';
+}
+if (endsAt) {
+const fin = new Date(endsAt).getTime();
+if (Number.isFinite(fin) && t >= fin) return 'cerrado';
+}
+return 'abierto';
+}
+
+// --- 2.6) El rollo se guarda en el celular ---------------------------
+// Antes las fotos de la visita vivian solo en memoria: si el invitado cerraba
+// la pestana, perdia su rollo. Ahora guardamos la liga de cada foto que subio,
+// asi puede volver a verlas mas tarde y tambien cuando el evento ya cerro.
+function rollKey(eventId) { return 'revelado_roll_' + eventId; }
+
+function rolloGuardado(eventId) {
+try {
+const lista = JSON.parse(localStorage.getItem(rollKey(eventId)));
+return Array.isArray(lista) ? lista.filter(u => typeof u === 'string') : [];
+} catch (e) { return []; }
+}
+
+function guardarEnRollo(eventId, url) {
+try {
+const lista = rolloGuardado(eventId);
+lista.push(url);
+localStorage.setItem(rollKey(eventId), JSON.stringify(lista));
+} catch (e) { /* si el navegador bloquea localStorage, solo no se recuerda */ }
 }
 
 // --- 2.5) El "rollo": cada invitado trae un número fijo de fotos ------
@@ -516,6 +584,7 @@ if (!currentEvent || !currentEvent.isDemo) return;
 try {
 localStorage.removeItem(shotsKey(currentEvent.id));
 localStorage.removeItem(voicesKey(currentEvent.id));
+localStorage.removeItem(rollKey(currentEvent.id));
 } catch (e) { /* ignorar */ }
 rollPhotos.length = 0;
 sentVoices.length = 0;
@@ -570,7 +639,7 @@ showError('Este link no tiene un evento válido. Escanea el código QR de tu eve
 return;
 }
 
-const { data, error } = await db.from('events').select('id, filter, status').eq('slug', slug).single();
+const { data, error } = await db.from('events').select('id, filter, status, starts_at, ends_at').eq('slug', slug).single();
 if (error || !data) {
 showError('No encontramos ese evento. Pide el código QR correcto a tu organizador.');
 return;
@@ -580,13 +649,27 @@ showError('Este evento todavía no está activo.');
 return;
 }
 
+// La camara solo abre en su ventana: antes del evento se avisa desde cuando
+// sirve, y despues de que cierra ya no se toman fotos pero el invitado sigue
+// viendo las suyas.
+const momento = momentoDelEvento(data.starts_at, data.ends_at);
+if (momento === 'antes') {
+showAviso('Tu cámara se activa el ' + fechaHoraLarga(data.starts_at) + '. Guarda este código y vuelve a escanearlo el día del evento.');
+return;
+}
+
 currentEvent = {
 id: data.id,
 filterClass: 'filter-' + (data.filter || 'vintage'),
 photoLimit: photoLimitFor(slug),
 voiceLimit: voiceLimitFor(slug),
-isDemo: slug === DEMO_SLUG
+isDemo: slug === DEMO_SLUG,
+cerrado: momento === 'cerrado'
 };
+
+// Lo que ya habia subido en visitas anteriores vuelve a su rollo.
+rollPhotos.length = 0;
+rolloGuardado(data.id).forEach(url => rollPhotos.push(url));
 
 frameCard.classList.toggle('polaroid-card', currentEvent.filterClass === 'filter-polaroid');
 document.getElementById('frame').classList.toggle('vintage-glow', currentEvent.filterClass === 'filter-vintage');
@@ -600,9 +683,36 @@ voiceGuestName.value = savedName;
 }
 } catch (e) { /* si el navegador bloquea localStorage, no pasa nada, solo no se recuerda */ }
 
+if (currentEvent.cerrado) {
+mostrarEventoCerrado();
+return;
+}
+
 stateScreen.hidden = true;
 cameraUI.hidden = false;
 refreshShotsUI();
+}
+
+// El evento ya termino: se apagan la camara y el microfono, y lo unico que
+// queda en pantalla son las fotos que este invitado alcanzo a tomar.
+function mostrarEventoCerrado() {
+if (!rollPhotos.length) {
+showAviso('Este evento ya terminó. Gracias por acompañarlos.');
+return;
+}
+stateScreen.hidden = true;
+cameraUI.hidden = false;
+modeSwitch.hidden = true;
+voiceMode.hidden = true;
+photoMode.hidden = false;
+shutterBtn.hidden = true;
+shutterBtn.disabled = true;
+shotsLeftEl.hidden = true;
+restartDemoBtn.hidden = true;
+detailsPanel.hidden = true;
+revealRoll();
+rollTitle.textContent = 'Tu rollo revelado';
+setStatus('Este evento ya terminó. Tus fotos ya están en el álbum de los festejados.');
 }
 
 // --- 4) Selector de modo: foto o mensaje de voz ---------------------
@@ -718,8 +828,10 @@ if (insertError) throw insertError;
 try { if (guestName) localStorage.setItem('revelado_guest_name', guestName); } catch (e) { /* ignorar */ }
 
 registerShot(currentEvent.id);
-// Nos guardamos la foto de esta visita para poder enseñarle su rollo al final.
-rollPhotos.push(URL.createObjectURL(pendingBlob));
+// Nos guardamos la liga de la foto para poder enseñarle su rollo al final
+// -- y para que siga ahi si cierra la pestaña y vuelve.
+rollPhotos.push(pub.publicUrl);
+guardarEnRollo(currentEvent.id, pub.publicUrl);
 
 setStatus('¡Lista! Ya está en el álbum.', 'ok');
 pendingBlob = null;
